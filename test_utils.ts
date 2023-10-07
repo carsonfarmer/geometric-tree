@@ -40,3 +40,13 @@ export function shuffle<T>(array: ReadonlyArray<T>): Array<T> {
   }
   return copy;
 }
+
+/**
+ * Generate a random value from a geometric distribution with probability `p`.
+ * This function uses the inverse transform method to generate random values.
+ * @param p The probability of success in a Bernoulli trial.
+ * @returns A random value from the geometric distribution with parameter `p`.
+ */
+export function geometricRandom(p: number) {
+  return Math.floor(Math.log(Math.random()) / Math.log(1 - p));
+}

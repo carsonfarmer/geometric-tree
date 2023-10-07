@@ -1,5 +1,5 @@
 import { assert, assertEquals, frozen, range, shuffle } from "./test_utils.ts";
-import { BZipTree, mermaidDiagram } from "./k-max-tree.ts";
+import { BZipTree, mermaidDiagram } from "./k_max_tree.ts";
 
 Deno.test({
   name: "chunk",

@@ -1,7 +1,8 @@
-export type Item<K, R extends number> = {
-  key: K;
-  rank: R;
-};
+import { Item, ZipTree } from "./api.ts";
+
+/**
+ * A new type of higher-order ZipTree implementation.
+ */
 
 export interface Node<K, R extends number> {
   rank: R;
@@ -9,7 +10,7 @@ export interface Node<K, R extends number> {
   children: (Node<K, R> | undefined)[];
 }
 
-export class BZipTree<K, R extends number> {
+export class BZipTree<K, R extends number> implements ZipTree<K, R> {
   constructor(
     public root?: Node<K, R>,
   ) {}
@@ -25,7 +26,7 @@ export class BZipTree<K, R extends number> {
   static from<K, R extends number>(
     array: Array<Item<K, R>>,
   ) {
-    const root = chunk(array);
+    const root = from(array);
     return new BZipTree<K, R>(root);
   }
 
@@ -48,7 +49,7 @@ export class BZipTree<K, R extends number> {
     return new BZipTree<K, R>(root);
   }
 
-  unzip(key: K) {
+  unzip(key: K): [BZipTree<K, R>, BZipTree<K, R>] {
     const [left, right] = unzip(key, this.root);
     return [new BZipTree<K, R>(left), new BZipTree<K, R>(right)];
   }
@@ -135,7 +136,7 @@ function splitByIndices<T>(array: T[], indices: number[]): T[][] {
  * Map an array of values to a k-ary zip tree.
  * @param array The input array.
  */
-export function chunk<K, R extends number>(
+export function from<K, R extends number>(
   keys: Item<K, R>[],
 ): Node<K, R> | undefined {
   if (keys.length == 0) {
@@ -147,7 +148,7 @@ export function chunk<K, R extends number>(
   const maxRank = Math.max(...keys.map(({ rank }) => rank));
   const splitIndexes = findAllIndices(keys, ({ rank }) => rank == maxRank);
   const _keys = splitIndexes.map((index) => keys[index]);
-  const children = splitByIndices(keys, splitIndexes).map(chunk);
+  const children = splitByIndices(keys, splitIndexes).map(from);
   return { keys: _keys, children, rank: maxRank as R };
 }
 
