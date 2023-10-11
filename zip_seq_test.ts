@@ -1,12 +1,4 @@
-import {
-  assert,
-  assertEquals,
-  frozen,
-  random,
-  shuffle,
-  sorted,
-  split,
-} from "./test_utils.ts";
+import { assert, assertEquals, frozen, random, shuffle } from "./test_utils.ts";
 import { ZipSequence } from "./zip_seq.ts";
 import { BinaryZipTree, unzip } from "./zip_tree.ts";
 

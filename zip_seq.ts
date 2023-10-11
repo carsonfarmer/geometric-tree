@@ -33,7 +33,7 @@ export class ZipSequence<K, R extends number = number> {
 
   /**
    * Create a ZipTree from a sorted array of items.
-   * @param array The array of items to insert into the tree. The array must be sorted by key.
+   * @param array The array of items to insert into the tree. The array must be pre-sorted by key.
    * @returns A ZipTree with the items from the array.
    */
   static from<K, R extends number = number>(
