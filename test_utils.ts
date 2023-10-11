@@ -3,6 +3,7 @@ export {
   assertEquals,
 } from "https://deno.land/std@0.202.0/assert/mod.ts";
 import { Item } from "./api.ts";
+import { geometric } from "./utils.ts";
 
 export const pairs = [
   [2, 1],
@@ -42,16 +43,6 @@ export function shuffle<T>(array: ReadonlyArray<T>): Array<T> {
   return copy;
 }
 
-/**
- * Generate a random value from a geometric distribution with probability `p`.
- * This function uses the inverse transform method to generate random values.
- * @param p The probability of success in a Bernoulli trial.
- * @returns A random value from the geometric distribution with parameter `p`.
- */
-export function geometricRandom(p: number) {
-  return Math.floor(Math.log(Math.random()) / Math.log(1 - p));
-}
-
 export function random(n = 10): Item<number, number>[] {
   const factor = Math.floor(n / 10);
   const pairs: Item<number, number>[] = [];
@@ -60,7 +51,7 @@ export function random(n = 10): Item<number, number>[] {
     const key = Math.floor(Math.random() * 10 * factor);
     if (!keys.has(key)) {
       keys.add(key);
-      const rank = geometricRandom(0.5);
+      const rank = geometric(0.5);
       pairs.push({ key, rank });
     }
   }
