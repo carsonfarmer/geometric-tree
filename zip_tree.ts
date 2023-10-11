@@ -7,9 +7,10 @@ import { Item, ZipTree } from "./api.ts";
 /**
  * Node is a node in the BinaryZipTree.
  */
-export interface Node<K, R extends number> extends Item<K, R> {
+export interface Node<K, R extends number = number> extends Item<K, R> {
   left: Node<K, R> | undefined;
   right: Node<K, R> | undefined;
+  size: number;
 }
 
 /**
@@ -17,7 +18,7 @@ export interface Node<K, R extends number> extends Item<K, R> {
  */
 export class BinaryZipTree<
   K,
-  R extends number,
+  R extends number = number,
 > implements ZipTree<K, R> {
   constructor(
     /**
@@ -30,7 +31,7 @@ export class BinaryZipTree<
    * Create an empty ZipTree.
    * @returns An empty ZipTree.
    */
-  static empty<K, R extends number>(): BinaryZipTree<K, R> {
+  static empty<K, R extends number = number>(): BinaryZipTree<K, R> {
     return new BinaryZipTree<K, R>();
   }
 
@@ -39,7 +40,7 @@ export class BinaryZipTree<
    * @param item The item to insert into the tree.
    * @returns A ZipTree with a single item.
    */
-  static singleton<K, R extends number>(
+  static singleton<K, R extends number = number>(
     item: Item<K, R>,
   ): BinaryZipTree<K, R> {
     return new BinaryZipTree<K, R>(singleton(item));
@@ -50,11 +51,19 @@ export class BinaryZipTree<
    * @param array The array of items to insert into the tree. The array must be sorted by key.
    * @returns A ZipTree with the items from the array.
    */
-  static from<K, R extends number>(
+  static from<K, R extends number = number>(
     array: Array<Item<K, R>>,
   ): BinaryZipTree<K, R> {
     const root = from(array);
     return new BinaryZipTree<K, R>(root);
+  }
+
+  /**
+   * Return the size of the tree.
+   * @returns The size of the tree.
+   */
+  length() {
+    return this.root?.size ?? 0;
   }
 
   /**
@@ -70,7 +79,7 @@ export class BinaryZipTree<
    * @param key The key to search for.
    * @returns The item with the given key if it exists in the tree, otherwise undefined.
    */
-  search(key: K) {
+  search(key: K): Item<K, R> | undefined {
     const node = search(key, this.root);
     return node ? { key: node.key, rank: node.rank } : undefined;
   }
@@ -139,7 +148,7 @@ export class BinaryZipTree<
    * @returns A string representation of the tree.
    */
   toString() {
-    return `ZipTree(${this.root?.key}, ${this.root?.rank})`;
+    return `BinaryZipTree(${this.root?.key}, ${this.root?.rank})`;
   }
 
   /**
@@ -159,8 +168,13 @@ export class BinaryZipTree<
   }
 }
 
+export function sized<K, R extends number>(node: Node<K, R>) {
+  const size = (node.left?.size ?? 0) + (node.right?.size ?? 0) + 1;
+  return { ...node, size };
+}
+
 export function singleton<K, R extends number>(item: Item<K, R>): Node<K, R> {
-  return { ...item, left: undefined, right: undefined };
+  return { ...item, left: undefined, right: undefined, size: 1 };
 }
 
 export function from<K, R extends number>(
@@ -176,7 +190,8 @@ export function from<K, R extends number>(
   const splitIndex = array.findIndex(({ rank }) => rank === maxRank);
   const left = from(array.slice(0, splitIndex));
   const right = from(array.slice(splitIndex + 1));
-  return { ...array[splitIndex], left, right };
+  const size = (left?.size ?? 0) + (right?.size ?? 0) + 1;
+  return { ...array[splitIndex], left, right, size };
 }
 
 export function search<K, R extends number>(
@@ -208,7 +223,13 @@ export function insert<K, R extends number>(
   return zip(zip(left, singleton(item)), right);
 }
 
-export function removeDefault<K, R extends number>(
+/**
+ * Not currently used.
+ * @param key
+ * @param root
+ * @returns
+ */
+function _defaultRemove<K, R extends number>(
   key: K,
   root?: Node<K, R>,
 ): Node<K, R> | undefined {
@@ -261,15 +282,15 @@ export function unzip<K, R extends number>(
   }
   if (root.key == key) {
     const right = root.right;
-    const left = drop ? root.left : { ...root, right: undefined };
+    const left = drop ? root.left : sized({ ...root, right: undefined });
     return [left, right];
   } else if (root.key < key) {
     const [_right, right] = unzip(key, root.right, drop);
-    const left = { ...root, right: _right };
+    const left = sized({ ...root, right: _right });
     return [left, right];
   } else {
     const [left, _left] = unzip(key, root.left, drop);
-    const right = { ...root, left: _left };
+    const right = sized({ ...root, left: _left });
     return [left, right];
   }
 }
@@ -286,10 +307,10 @@ export function zip<K, R extends number>(
   }
   if (left.rank < right.rank) {
     const _left = zip(left, right.left);
-    return { ...right, left: _left };
+    return sized({ ...right, left: _left });
   } else {
     const _right = zip(left.right, right);
-    return { ...left, right: _right };
+    return sized({ ...left, right: _right });
   }
 }
 
