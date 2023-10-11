@@ -13,17 +13,34 @@ export interface Node<K, R extends number = number> {
 
 export class BZipTree<K, R extends number = number> implements ZipTree<K, R> {
   constructor(
+    /**
+     * The root node of the tree.
+     */
     public root?: Node<K, R>,
   ) {}
 
+  /**
+   * Create an empty BZipTree.
+   * @returns An empty BZipTree.
+   */
   static empty<K, R extends number = number>() {
     return new BZipTree<K, R>();
   }
 
+  /**
+   * Create a BZipTree with a single item.
+   * @param item The item to insert into the tree.
+   * @returns A BZipTree with a single item.
+   */
   static singleton<K, R extends number = number>(item: Item<K, R>) {
     return new BZipTree<K, R>(singleton(item));
   }
 
+  /**
+   * Create a BZipTree from a sorted array of items.
+   * @param array The array of items to insert into the tree. The array must be pre-sorted by key.
+   * @returns A BZipTree with the items from the array.
+   */
   static from<K, R extends number = number>(
     array: Array<Item<K, R>>,
   ) {
@@ -39,30 +56,60 @@ export class BZipTree<K, R extends number = number> implements ZipTree<K, R> {
     return this.root?.size ?? 0;
   }
 
+  /**
+   * Check if the tree is empty.
+   * @returns Whether the tree is empty.
+   */
   isEmpty() {
     return this.root === undefined;
   }
 
+  /**
+   * Search for a key in the tree.
+   * @param key The key to search for.
+   * @returns The item with the given key if it exists in the tree, otherwise undefined.
+   */
   search(key: K) {
     const node = search(key, this.root);
     return node ? { key: node.key, rank: node.rank } : undefined;
   }
 
+  /**
+   * Insert an item into the tree.
+   * @param item The item to insert.
+   * @returns A new tree with the item inserted.
+   */
   insert(item: Item<K, R>) {
     const root = insert(item, this.root);
     return new BZipTree<K, R>(root);
   }
 
+  /**
+   * Remove an item from the tree.
+   * @param key The key of the item to remove.
+   * @returns A new tree with the item removed.
+   */
   remove(key: K) {
     const root = remove(key, this.root);
     return new BZipTree<K, R>(root);
   }
 
+  /**
+   * Split the input tree into two balanced sub-trees.
+   * @param key The key to split the tree on.
+   * @returns A tuple of the left and right trees.
+   */
   unzip(key: K): [BZipTree<K, R>, BZipTree<K, R>] {
     const [left, right] = unzip(key, this.root);
     return [new BZipTree<K, R>(left), new BZipTree<K, R>(right)];
   }
 
+  /**
+   * Join another tree into this one.
+   * @param other The other tree to join.
+   * All of the keys in the other tree must be greater than the keys in this tree.
+   * @returns A new tree with the two trees joined.
+   */
   zip(other: BZipTree<K, R>) {
     const root = zip(this.root, other.root);
     return new BZipTree<K, R>(root);
@@ -83,16 +130,28 @@ export class BZipTree<K, R extends number = number> implements ZipTree<K, R> {
     return new BZipTree<K, R>(root);
   }
 
+  /**
+   * Return a string representation of the tree.
+   * @returns A string representation of the tree.
+   */
   toString() {
     return `BZipTree(${this.root?.keys.length}, ${this.root?.children.length})`;
   }
 
+  /**
+   * Return an Iterator over the items in the tree.
+   * @returns An Iterator over the items in the tree.
+   */
   [Symbol.iterator]() {
-    return inOrder(this.root);
+    return iter(this.root);
   }
 
+  /**
+   * Return an array of the in-order items in the tree.
+   * @returns An array of the in-order items in the tree.
+   */
   toArray(): Array<Item<K, R>> {
-    return [...inOrder(this.root)].map(({ key, rank }) => ({ key, rank }));
+    return [...iter(this.root)];
   }
 }
 
@@ -115,7 +174,6 @@ export function singleton<K, R extends number>(item: Item<K, R>): Node<K, R> {
 
 /**
  * Find all indices of array where predicate returns `true`.
- *
  * @param array The array to process.
  * @param predicate The function invoked per iteration.
  * @returns Returns an array of all indices for which the predicate function returns `true`.
@@ -135,8 +193,6 @@ function findAllIndices<T>(
 /**
  * Split an array into multiple subsets using an array of indices.
  * The elements at the "found" indices are not included in the subsets.
- *
- * @template T
  * @param array The array to process.
  * @param indices The indices at which to split the original array.
  * @returns Returns an array of the resulting subsets.
@@ -150,10 +206,6 @@ function splitByIndices<T>(array: T[], indices: number[]): T[][] {
     .filter((x) => x != null) as unknown as T[][];
 }
 
-/**
- * Map an array of values to a k-ary zip tree.
- * @param array The input array.
- */
 export function from<K, R extends number>(
   keys: Item<K, R>[],
 ): Node<K, R> | undefined {
@@ -195,6 +247,13 @@ export function search<K, R extends number>(
   }
 }
 
+/**
+ * This is identical to the insert operation in the ZipTree implementation.
+ * The differences are in the underlying zip and unzip functions.
+ * We _could_ actually just use the ZipTree insert operation here, but
+ * curry them by injecting the correct (un)zip function. But for now, we'll
+ * keep them separate.
+ */
 export function insert<K, R extends number>(
   item: Item<K, R>,
   root?: Node<K, R>,
@@ -206,6 +265,9 @@ export function insert<K, R extends number>(
   return zip(zip(left, singleton(item)), right);
 }
 
+/**
+ * Again, this is identical to the remove operation in the ZipTree implementation.
+ */
 export function remove<K, R extends number>(
   key: K,
   root?: Node<K, R>,
@@ -217,7 +279,7 @@ export function remove<K, R extends number>(
   return zip(left, right);
 }
 
-// Sub-operation for unzip
+// Sub-operation for unzip (needs some cleanup)
 function splitNode<K, R extends number>(
   root: Node<K, R>,
   index: number,
@@ -273,7 +335,7 @@ function isEmpty<K, R extends number>(node?: Node<K, R>) {
     (node.keys.length === 0 && node.children[0] === undefined);
 }
 
-// Sub-operation for unzip
+// Sub-operation for unzip (needs some cleanup)
 function splitChild<K, R extends number>(
   root: Node<K, R>,
   index: number,
@@ -397,6 +459,14 @@ export function zip<K, R extends number>(
       ...left,
       children: [...left.children.slice(0, -1), _right],
     });
+  }
+}
+
+export function* iter<K, R extends number>(
+  root?: Node<K, R>,
+): IterableIterator<Item<K, R>> {
+  for (const { key, rank } of inOrder(root)) {
+    yield { key, rank };
   }
 }
 
