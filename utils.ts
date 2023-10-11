@@ -1,7 +1,6 @@
 /**
  * Compute the rank of a large integer by counting the number of trailing zeros its binary representation.
- * This can also be thought of as the number of times the integer can be divided by 2, or the largest
- * power of 2 that divides the integer.
+ * This can also be thought of as the largest power of 2 that divides the integer.
  *
  * @param integer The integer whose rank to compute.
  * @returns The numeric "rank" of the integer.
