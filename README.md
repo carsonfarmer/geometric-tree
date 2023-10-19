@@ -58,29 +58,29 @@ graph TD;
 41-43--2-1-->47
 7-67--3-2-->61
 61--2-1-->59
-7-67--3-2-->71-[71-♾️]
+7-67--3-2-->71-[71]
 ```
 
 A generalized variant of the higher-order tree, which we call a geometric-tree, is also implemented here. The geometric-tree enables creating trees with a maximum number of children. This bounded variant can be used to create a spectrum of probabilistic tree types, from binary, to a more traditional b-tree, to the unbounded b-tree variant shown above (and anything in between). The following figure shows a geometric-tree with a maximum of 2 + 1 children per node.
 
 ```mermaid
 graph TD;
-  7-67--3-3-->7-31
-  7-31--3-2-->3
-  3--2-1-->2
-  3--2-1-->5
-  7-31--3-2-->13-29
-  13-29--2-2-->13-23
-  13-23--2-1-->11
-  13-23--2-1-->17-19
-  13-29--2-2-->29
-  7-67--3-3-->53-67
-  53-67--3-2-->41-43
-  41-43--2-1-->37
-  41-43--2-1-->47
-  53-67--3-2-->61
-  61--2-1-->59
-  7-67--3-2-->71-[71-♾️]
+7-67--3-3-->7-31
+7-31--3-2-->3
+3--2-1-->2
+3--2-1-->5
+7-31--3-2-->13-29
+13-29--2-2-->13-23
+13-23--2-1-->11
+13-23--2-1-->17-19
+13-29--2-2-->29
+7-67--3-3-->53-67
+53-67--3-2-->41-43
+41-43--2-1-->37
+41-43--2-1-->47
+53-67--3-2-->61
+61--2-1-->59
+7-67--3-2-->71-[71]
 ```
 
 ## Install
