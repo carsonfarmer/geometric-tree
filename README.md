@@ -1,4 +1,4 @@
-# max-k-tree
+# geometric-tree
 
 > A randomized self-balancing tree data structure.
 
