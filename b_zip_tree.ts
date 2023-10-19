@@ -1,4 +1,5 @@
 import { Item, ZipTree } from "./api.ts";
+import { pad } from "./utils.ts";
 
 /**
  * A new type of higher-order ZipTree implementation.
@@ -126,7 +127,7 @@ export class BZipTree<K, R extends number = number> implements ZipTree<K, R> {
     left: BZipTree<K, R>,
     right: BZipTree<K, R>,
   ) {
-    const root = zip(left?.root, right?.root);
+    const root = zip(left.root, right.root);
     return new BZipTree<K, R>(root);
   }
 
@@ -178,7 +179,7 @@ export function singleton<K, R extends number>(item: Item<K, R>): Node<K, R> {
  * @param predicate The function invoked per iteration.
  * @returns Returns an array of all indices for which the predicate function returns `true`.
  */
-function findAllIndices<T>(
+export function splits<T>(
   array: T[],
   predicate: (element: T) => boolean,
 ) {
@@ -197,7 +198,7 @@ function findAllIndices<T>(
  * @param indices The indices at which to split the original array.
  * @returns Returns an array of the resulting subsets.
  */
-function splitByIndices<T>(array: T[], indices: number[]): T[][] {
+export function subsets<T>(array: T[], indices: number[]): T[][] {
   const indexes = [-1, ...indices, array.length];
   return indexes
     .map((value, index, arr) =>
@@ -207,28 +208,23 @@ function splitByIndices<T>(array: T[], indices: number[]): T[][] {
 }
 
 export function from<K, R extends number>(
-  keys: Item<K, R>[],
+  items: Item<K, R>[],
 ): Node<K, R> | undefined {
-  if (keys.length == 0) {
+  if (items.length == 0) {
     return undefined;
-  } else if (keys.length == 1) {
-    return {
-      keys,
-      children: [undefined, undefined],
-      rank: keys[0].rank,
-      size: 1,
-    };
+  } else if (items.length == 1) {
+    return singleton(items[0]);
   }
   // TODO: This is of course, not efficient... we can do this in a single pass!
-  const maxRank = Math.max(...keys.map(({ rank }) => rank));
-  const splitIndexes = findAllIndices(keys, ({ rank }) => rank == maxRank);
-  const _keys = splitIndexes.map((index) => keys[index]);
-  const children = splitByIndices(keys, splitIndexes).map(from);
+  const rank = Math.max(...items.map(({ rank }) => rank)) as R;
+  const _splits = splits(items, ({ rank: r }) => r === rank);
+  const keys = _splits.map((index) => items[index]);
+  const children = subsets(items, _splits).map(from);
   const size = children.reduce(
     (size, child) => (child?.size ?? 0) + size,
-    _keys.length,
+    keys.length,
   );
-  return { keys: _keys, children, rank: maxRank as R, size };
+  return { keys, children, rank, size };
 }
 
 export function search<K, R extends number>(
@@ -280,7 +276,7 @@ export function remove<K, R extends number>(
 }
 
 // Sub-operation for unzip (needs some cleanup)
-function splitNode<K, R extends number>(
+export function splitNode<K, R extends number>(
   root: Node<K, R>,
   index: number,
   drop = false,
@@ -289,10 +285,8 @@ function splitNode<K, R extends number>(
   let left: Node<K, R> | undefined;
   {
     const keys = root.keys.slice(0, index + Number(!drop));
-    const children = root.children.slice(0, index + 1);
-    while (children.length <= keys.length) {
-      children.push(undefined);
-    }
+    let children = root.children.slice(0, index + 1);
+    children = pad(children, keys.length + 1);
     const size = children.reduce(
       (size, child) => (child?.size ?? 0) + size,
       keys.length,
@@ -336,7 +330,7 @@ function isEmpty<K, R extends number>(node?: Node<K, R>) {
 }
 
 // Sub-operation for unzip (needs some cleanup)
-function splitChild<K, R extends number>(
+export function splitChild<K, R extends number>(
   root: Node<K, R>,
   index: number,
   key: K,
@@ -348,10 +342,8 @@ function splitChild<K, R extends number>(
   let left: Node<K, R> | undefined;
   {
     const keys = root.keys.slice(0, index);
-    const children = [...root.children.slice(0, index), _left];
-    while (children.length <= keys.length) {
-      children.push(undefined);
-    }
+    let children = [...root.children.slice(0, index), _left];
+    children = pad(children, keys.length + 1);
     const size = children.reduce(
       (size, child) => (child?.size ?? 0) + size,
       keys.length,
@@ -367,10 +359,8 @@ function splitChild<K, R extends number>(
   let right: Node<K, R> | undefined;
   {
     const keys = root.keys.slice(index);
-    const children = [_right, ...root.children.slice(index + 1)];
-    while (children.length <= keys.length) {
-      children.unshift(undefined);
-    }
+    let children = [_right, ...root.children.slice(index + 1)];
+    children = pad(children, keys.length + 1, true);
     const size = children.reduce(
       (size, child) => (child?.size ?? 0) + size,
       keys.length,
@@ -414,7 +404,7 @@ export function unzip<K, R extends number>(
 }
 
 // Sub-operation for zip
-function mergeNodes<K, R extends number>(
+export function mergeNodes<K, R extends number>(
   left: Node<K, R>,
   right: Node<K, R>,
 ): Node<K, R> | undefined {

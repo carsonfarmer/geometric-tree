@@ -376,16 +376,19 @@ function* mermaidNodes<K, R extends number>(
     return;
   }
   const nodeKey = root.key;
+  const nodeRank = root.rank;
   if (root.left) {
     const leftKey = root.left.key;
-    yield `${nodeKey}-->${leftKey}`;
+    const leftRank = root.left.rank;
+    yield `${nodeKey}--${nodeRank}-${leftRank}-->${leftKey}`;
     yield* mermaidNodes(root.left);
   } else if (root.right) {
     yield `${nodeKey}-.->${nodeKey}null{ }`;
   }
   if (root.right) {
     const rightKey = root.right.key;
-    yield `${nodeKey}-->${rightKey}`;
+    const rightRank = root.right.rank;
+    yield `${nodeKey}--${nodeRank}-${rightRank}-->${rightKey}`;
     yield* mermaidNodes(root.right);
   } else if (root.left) {
     yield `${nodeKey}-.->${nodeKey}null{ }`;

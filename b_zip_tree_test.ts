@@ -8,7 +8,7 @@ import {
   sorted,
   split,
 } from "./test_utils.ts";
-import { BZipTree as ZipTree, mermaidDiagram } from "./bzip_tree.ts";
+import { BZipTree as ZipTree, mermaidDiagram } from "./b_zip_tree.ts";
 
 Deno.test({
   name: "from",

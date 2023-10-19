@@ -1,31 +1,33 @@
 export {
   assert,
   assertEquals,
+  assertThrows,
 } from "https://deno.land/std@0.202.0/assert/mod.ts";
 import { Item } from "./api.ts";
 import { geometric } from "./utils.ts";
+export { split } from "./utils.ts";
 
 export const pairs = [
-  [2, 1],
-  [3, 2],
-  [5, 1],
-  [7, 3],
-  [11, 1],
-  [13, 2],
-  [17, 1],
-  [19, 1],
-  [23, 2],
-  [29, 2],
-  [31, 3],
-  [37, 1],
-  [41, 2],
-  [43, 2],
-  [47, 1],
-  [53, 3],
-  [59, 1],
-  [61, 2],
-  [67, 3],
-  [71, 2],
+  [2, 1], /// 0
+  [3, 2], /// 1
+  [5, 1], /// 2
+  [7, 3], /// 3
+  [11, 1], // 4
+  [13, 2], // 5
+  [17, 1], // 6
+  [19, 1], // 7
+  [23, 2], // 8
+  [29, 2], // 9
+  [31, 3], // 10
+  [37, 1], // 11
+  [41, 2], // 12
+  [43, 2], // 13
+  [47, 1], // 14
+  [53, 3], // 15
+  [59, 1], // 16
+  [61, 2], // 17
+  [67, 3], // 18
+  [71, 2], // 19
 ];
 
 export const frozen = pairs.map(([key, rank]) => Object.freeze({ key, rank }));
@@ -60,10 +62,4 @@ export function random(n = 10): Item<number, number>[] {
 
 export function sorted(items: Item<number, number>[]) {
   return items.toSorted(({ key: a }, { key: b }) => a - b);
-}
-
-export function split<T>(array: T[], index: number): [T[], T[]] {
-  const left = array.slice(0, index);
-  const right = array.slice(index);
-  return [left, right];
 }

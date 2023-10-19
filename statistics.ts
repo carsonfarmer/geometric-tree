@@ -1,4 +1,4 @@
-import { BZipTree, Node } from "./bzip_tree.ts";
+import { BZipTree, Node } from "./b_zip_tree.ts";
 
 // TODO: This is just a temp constant placeholder.
 const K = 32;
