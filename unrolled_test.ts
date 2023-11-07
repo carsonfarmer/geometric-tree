@@ -182,7 +182,7 @@ Deno.test({
   fn(): void {
     const list = newPopulatedList(4, 8);
     for (let i = 0; i < 3; i++) {
-      list.pop();
+      list.shift();
     }
     assertEquals(list.elements.length, 2);
     assertEquals(list.next?.elements.length, 3);
@@ -198,7 +198,7 @@ Deno.test({
     assertEquals(initialNodeLength, 3);
 
     for (let i = 0; i < 4; i++) {
-      list.pop();
+      list.shift();
     }
     assertEquals(nodeLength(list), 2);
     assertEquals(list.elements.length, 4);
@@ -237,8 +237,8 @@ Deno.test({
   name: "pushBackReallyAppends",
   fn(): void {
     const list = newPopulatedList(5, 10);
-    list.pop();
-    list.pop();
+    list.shift();
+    list.shift();
     const initialNodeLength = nodeLength(list);
     assertEquals(initialNodeLength, 2);
 
@@ -269,7 +269,7 @@ Deno.test({
   fn(): void {
     const a = newPopulatedList(5, 5);
     const b = newPopulatedList(5, 7);
-    const c = UnrolledList.join(a, b);
+    const c = UnrolledList.concat(a, b);
     const d = a.clone();
     d.next = b.clone();
     assertEquals(c, d);
@@ -282,8 +282,8 @@ Deno.test({
   fn(): void {
     const a = newPopulatedList(5, 5);
     const b = newPopulatedList(5, 7);
-    const c = UnrolledList.join(a, b);
-    const [e, d] = UnrolledList.split(c, 5);
+    const c = UnrolledList.concat(a, b);
+    const [e, d] = UnrolledList.splitAt(c, 5);
     e.next = undefined;
     assertEquals(d, b);
     assertEquals(e, a);

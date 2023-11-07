@@ -116,12 +116,12 @@ export class UnrolledList<T> implements Iterable<T> {
   }
 
   // TODO: We are using elements.length, but we might want to use capacity?
-  set(i: number, value: T): void {
+  #set(i: number, value: T): void {
     if (i >= this.elements.length) {
       if (this.next === undefined) {
         throw new Error("Index out of range");
       }
-      this.next.set(i - this.elements.length, value);
+      this.next.#set(i - this.elements.length, value);
     } else {
       this.elements[i] = value;
     }
@@ -192,7 +192,7 @@ export class UnrolledList<T> implements Iterable<T> {
     return new UnrolledList(this.capacity);
   }
 
-  static split<T>(
+  static splitAt<T>(
     ul: UnrolledList<T>,
     i: number,
   ): [UnrolledList<T>, UnrolledList<T>] {
@@ -201,24 +201,35 @@ export class UnrolledList<T> implements Iterable<T> {
     return [left, right];
   }
 
-  join(other: UnrolledList<T>): UnrolledList<T> {
+  concat(other: UnrolledList<T>): UnrolledList<T> {
     if (this.next === undefined) {
       this.next = other.clone();
       this.#rebalance();
       return this;
     }
-    return this.next.join(other);
+    return this.next.concat(other);
   }
 
-  static join<T>(
+  static concat<T>(
     left: UnrolledList<T>,
     right: UnrolledList<T>,
   ): UnrolledList<T> {
-    return left.clone().join(right);
+    return left.clone().concat(right);
   }
 
   /** Delete and return the first element of the list. */
-  pop(): T | undefined {
+  shift(): T | undefined {
     return this.remove(0);
+  }
+
+  pop(): T | undefined {
+    return this.remove(this.length - 1);
+  }
+
+  unshift(...values: T[]): void {
+    const left = new UnrolledList<T>(this.capacity);
+    left.push(...values);
+    left.concat(this);
+    Object.assign(this, left);
   }
 }
