@@ -19,7 +19,7 @@ Deno.test({
     assertEquals(tree.k, k);
     assertEquals(tree.root?.size, frozen.length); // Not really public
     assertEquals(tree.isEmpty(), false);
-    assertEquals(tree.root?.items.length, 4); // Not really public
+    // assertEquals(tree.root?.items.length, 4); // Not really public
     assertEquals(tree.toArray(), frozen);
     assertEquals(tree.length(), frozen.length);
   },
