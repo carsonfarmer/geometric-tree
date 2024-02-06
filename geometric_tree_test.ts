@@ -14,9 +14,7 @@ Deno.test({
   name: "from",
   only: false,
   fn: () => {
-    const k = 2;
-    const tree = GeometricTree.from(frozen, k);
-    assertEquals(tree.k, k);
+    const tree = GeometricTree.from(frozen);
     assertEquals(tree.root?.size, frozen.length); // Not really public
     assertEquals(tree.isEmpty(), false);
     // assertEquals(tree.root?.items.length, 4); // Not really public
@@ -29,14 +27,12 @@ Deno.test({
   name: "search",
   only: false,
   fn: () => {
-    for (const k of [2, Infinity]) {
-      const tree = GeometricTree.from(frozen, k);
-      for (const item of shuffle(frozen)) {
-        const node = tree.search(item.key);
-        assertEquals(node, item);
-      }
-      assertEquals(tree.search(50), undefined);
+    const tree = GeometricTree.from(frozen);
+    for (const item of shuffle(frozen)) {
+      const node = tree.search(item.key);
+      assertEquals(node, item);
     }
+    assertEquals(tree.search(50), undefined);
   },
 });
 
@@ -44,17 +40,19 @@ Deno.test({
   name: "zip one",
   only: false,
   fn: () => {
-    const k = Infinity;
-    const tree = GeometricTree.from(frozen, k);
-    for (const i of shuffle(range(0, frozen.length - 1))) {
-      const left = GeometricTree.from(frozen.slice(0, i + 1), k);
-      const right = GeometricTree.from(frozen.slice(i + 1), k);
-      const root = left.zip(right);
-      assertEquals(root, tree, `mismatch at ${i}`);
-      const splitValue = frozen[i].key;
-      const [_left, _right] = root.unzip(splitValue);
-      assertEquals(_left, left, `mismatch at ${i}`);
-      assertEquals(_right, right, `mismatch at ${i}`);
+    const tree = GeometricTree.from(frozen);
+    let count = 100;
+    while (count--) {
+      for (const i of shuffle(range(0, frozen.length - 1))) {
+        const left = GeometricTree.from(frozen.slice(0, i + 1));
+        const right = GeometricTree.from(frozen.slice(i + 1));
+        const root = left.zip(right);
+        assertEquals(root, tree, `mismatch at ${i}`);
+        const splitValue = frozen[i].key;
+        const [_left, _right] = root.unzip(splitValue);
+        assertEquals(_left, left, `mismatch at ${i}`);
+        assertEquals(_right, right, `mismatch at ${i}`);
+      }
     }
     // Also test alternative API
     assertEquals(GeometricTree.zip(GeometricTree.empty(), tree), tree);
@@ -169,7 +167,7 @@ Deno.test({
     // tree should be unchanged
     assertEquals(tree.toArray(), frozen);
     assertEquals(root, GeometricTree.from(sorted(kept)));
-    // assertEquals(root.toArray(), sorted(kept));
+    assertEquals(root.toArray(), sorted(kept));
 
     // Note that this test isn't the same as the zip-tree variant.
     // Remove all the keys from the root node
@@ -336,8 +334,9 @@ Deno.test({
 Deno.test({
   name: "mermaid",
   only: false,
+  ignore: true,
   fn: () => {
-    const tree = GeometricTree.from(frozen, 2);
+    const tree = GeometricTree.from(frozen);
     console.log(mermaidDiagram(tree));
 
     const [left, right] = tree.unzip(47);

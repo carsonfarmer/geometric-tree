@@ -45,15 +45,15 @@ export function shuffle<T>(array: ReadonlyArray<T>): Array<T> {
   return copy;
 }
 
-export function random(n = 10): Item<number, number>[] {
+export function random(n = 10, p = 0.5): Item<number, number>[] {
   const factor = Math.floor(n / 10);
   const pairs: Item<number, number>[] = [];
   const keys = new Set<number>();
   while (pairs.length < n) {
-    const key = Math.floor(Math.random() * 10 * factor);
+    const key = Math.floor(Math.random() * 100 * factor);
     if (!keys.has(key)) {
       keys.add(key);
-      const rank = geometric(0.5);
+      const rank = geometric(p);
       pairs.push({ key, rank });
     }
   }

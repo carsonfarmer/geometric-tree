@@ -38,9 +38,18 @@ export function popFront<T>(array: ReadonlyArray<T>): ReadonlyArray<T> {
   return [...array].slice(1);
 }
 
+// export function popFront<T>(array: ReadonlyArray<T>): [ReadonlyArray<T>, T?] {
+//   const [front, ...rest] = array;
+//   return [rest, front];
+// }
+
 export function popBack<T>(array: ReadonlyArray<T>): ReadonlyArray<T> {
   return [...array].slice(0, -1);
 }
+
+// export function popBack<T>(array: ReadonlyArray<T>): [ReadonlyArray<T>, T?] {
+//   return popFront(array.toReversed());
+// }
 
 export function peekFront<T>(array: ReadonlyArray<T>): T | undefined {
   return array.at(0);

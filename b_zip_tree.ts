@@ -181,12 +181,12 @@ export function singleton<K, R extends number>(item: Item<K, R>): Node<K, R> {
  */
 export function splits<T>(
   array: T[],
-  predicate: (element: T) => boolean,
+  predicate: (element: T, index: number) => boolean,
 ) {
   const initial: number[] = [];
   return array.reduce(
     (indices, element, index) =>
-      predicate(element) ? [...indices, index] : indices,
+      predicate(element, index) ? [...indices, index] : indices,
     initial,
   );
 }
@@ -198,7 +198,11 @@ export function splits<T>(
  * @param indices The indices at which to split the original array.
  * @returns Returns an array of the resulting subsets.
  */
-export function subsets<T>(array: T[], indices: number[]): T[][] {
+export function subsets<T>(
+  array: T[],
+  indices: number[],
+  maxSize = Infinity,
+): T[][] {
   const indexes = [-1, ...indices, array.length];
   return indexes
     .map((value, index, arr) =>

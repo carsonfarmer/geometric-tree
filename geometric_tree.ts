@@ -28,15 +28,14 @@ export class GeometricTree<K, R extends number = number>
      * The root node of the tree.
      */
     public root?: Node<K, R>,
-    public k = Infinity,
   ) {}
 
   /**
    * Create an empty GeneralizedZipTree.
    * @returns An empty GeneralizedZipTree.
    */
-  static empty<K, R extends number = number>(k = Infinity) {
-    return new GeometricTree<K, R>(undefined, k);
+  static empty<K, R extends number = number>() {
+    return new GeometricTree<K, R>(undefined);
   }
 
   /**
@@ -46,9 +45,8 @@ export class GeometricTree<K, R extends number = number>
    */
   static singleton<K, R extends number = number>(
     item: Item<K, R>,
-    k = Infinity,
   ) {
-    return new GeometricTree<K, R>(singleton(item), k);
+    return new GeometricTree<K, R>(singleton(item));
   }
 
   /**
@@ -58,10 +56,9 @@ export class GeometricTree<K, R extends number = number>
    */
   static from<K, R extends number = number>(
     array: Array<Item<K, R>>,
-    k = Infinity,
   ) {
-    const root = from(array, k);
-    return new GeometricTree<K, R>(root, k);
+    const root = from(array);
+    return new GeometricTree<K, R>(root);
   }
 
   /**
@@ -117,7 +114,10 @@ export class GeometricTree<K, R extends number = number>
    */
   unzip(key: K): [GeometricTree<K, R>, GeometricTree<K, R>] {
     const [left, right] = unzip(key, this.root);
-    return [new GeometricTree<K, R>(left), new GeometricTree<K, R>(right)];
+    return [
+      new GeometricTree<K, R>(left),
+      new GeometricTree<K, R>(right),
+    ];
   }
 
   /**
@@ -128,7 +128,7 @@ export class GeometricTree<K, R extends number = number>
    */
   zip(other: GeometricTree<K, R>) {
     const root = zip(this.root, other.root);
-    return new GeometricTree<K, R>(root, this.k);
+    return new GeometricTree<K, R>(root);
   }
 
   /**
@@ -184,7 +184,6 @@ export function sized<K, R extends number>(
 
 export function singleton<K, R extends number>(
   item: Item<K, R>,
-  k = Infinity,
 ): Node<K, R> {
   // const items = new Array<[K, Node<K, R> | undefined]>(k);
   // items.push([item.key, undefined]);
@@ -207,16 +206,18 @@ export function from<K, R extends number>(
   if (values.length == 0) {
     return undefined;
   } else if (values.length == 1) {
-    return singleton(values[0], k);
+    return singleton(values[0]);
   }
   // TODO: This is of course, not efficient... we can do this in a single pass!
   const rank = Math.max(...values.map(({ rank }) => rank)) as R;
-  const _splits = splits(values, ({ rank: r }) => r === rank); // .slice(0, k - 1);
+  // TODO: We simply take the first k-1 splits, because we already have sorting
+  // And we need to include the "next" pointer in our "k"
+  // This is essentially the same as saying "compute the first k-1 splits", and
+  // leave the rest for next level. In other words, we could do this _in_ the
+  // splits function.
+  const _splits = splits(values, ({ rank: r }) => r === rank).slice(0, k - 1);
   const keys = _splits.map((index) => values[index]);
-  // At the moment, we're hard-coding the unrolled linked list (and parameterize it by k)
-  // We should be able to parameterize the the list constructor instead
   const children = subsets(values, _splits).map((subset) => from(subset, k));
-  // const items = new Array<[K, Node<K, R> | undefined]>(k);
   const items: Array<[K, Node<K, R> | undefined]> = [];
   for (let i = 0; i < keys.length; i++) {
     items.push([keys[i].key, children[i]]);
@@ -260,6 +261,7 @@ export function search<K, R extends number>(
 export function insert<K, R extends number>(
   item: Item<K, R>,
   root?: Node<K, R>,
+  k = Infinity,
 ): Node<K, R> | undefined {
   if (root === undefined) {
     return singleton(item);
@@ -274,6 +276,7 @@ export function insert<K, R extends number>(
 export function remove<K, R extends number>(
   key: K,
   root?: Node<K, R>,
+  k = Infinity,
 ): Node<K, R> | undefined {
   if (root === undefined) {
     return undefined;
@@ -281,6 +284,33 @@ export function remove<K, R extends number>(
   const [left, right] = unzip(key, root, true);
   return zip(left, right);
 }
+
+// function unzipNode<K, R extends number>(
+//   key: K,
+//   node?: Node<K, R>,
+// ): [
+//   ReadonlyArray<[K, Node<K, R> | undefined]>?,
+//   ReadonlyArray<[K, Node<K, R> | undefined]>?,
+// ] {
+//   if (node === undefined) {
+//     // Early out for when root is missing.
+//     return [undefined, undefined];
+//   }
+//   // Find the index of the key in the items list.
+//   const index = findIndex(node.items, ([_key]) => _key >= key);
+//   if (index < 0) {
+//     // Deal with the "special case" that key is within the "next" node.
+//     if (node.next !== undefined) { // FIXME: Can we avoid this conditional?
+//       const [next, right] = unzip(key, node.next, false);
+//       return [sized({ ...root, next }), right];
+//     }
+//     // If we don't find it, we're done, just return the whole root.
+//     return [node.items, undefined];
+//   }
+//   // We simply split the root node at the index.
+//   const [left, right] = splitAt(node.items, index + 1);
+//   return [left, right];
+// }
 
 /**
  * Split the input tree into two balanced sub-trees.
@@ -302,7 +332,7 @@ export function unzip<K, R extends number>(
   const index = findIndex(root.items, ([_key]) => _key >= key);
   if (index < 0) {
     // Deal with the "special case" that key is within the "next" node.
-    if (root.next !== undefined) {
+    if (root.next !== undefined) { // FIXME: Can we avoid this conditional?
       const [next, right] = unzip(key, root.next, drop);
       return [sized({ ...root, next }), right];
     }
@@ -335,6 +365,7 @@ export function unzip<K, R extends number>(
     const right = isEmpty(__right) ? _right : sized({
       ...root,
       items: __right,
+      // TODO: Probably make this more explicit
     });
     return [left, right];
   } else {
@@ -381,14 +412,21 @@ export function zip<K, R extends number>(
     let rightItems = right.items;
     // If we're also storing a pointer to the "next" node, we need to
     // zip that with the right side.
+    // FIXME: No need for this conditional check
     if (left.next !== undefined) {
+      // Grab the first item from the right side...
       const innerRight = peekFront(rightItems);
+      // ...then remove it from the right items list.
       rightItems = popFront(rightItems);
       if (innerRight === undefined) {
         throw new Error("invariant violation");
       }
+      // Now combine it with the left side "next" pointer.
       const inner = zip(left.next, innerRight[1]);
+      // And then move this inner item "up" to the left items list.
       leftItems = pushBack(leftItems, [innerRight[0], inner]);
+      // TODO: We should be able to find a way to do this without mutating
+      // the left and right items lists themselves for added clarity.
     }
     // In both cases, we concat the two item lists.
     const items = concat(leftItems, rightItems);
@@ -430,35 +468,30 @@ export function* iter<K, R extends number>(
 
 function* mermaidNodes<K, R extends number>(
   node?: Node<K, R>,
+  parentId = "",
 ): Generator<string> {
   if (node === undefined) {
     return;
   }
   const keys = [...node.items].map(([key]) => key);
-  const outerName = `${keys[0]}-${keys[keys.length - 1]}`;
-  const next: ReadonlyArray<[K, Node<K, R> | undefined]> | undefined =
-    node.items;
-  // while (next !== undefined) {
-  // const keys = [...next].map(([key]) => key);
-  const nodeName = `${keys[0]}-${keys[keys.length - 1]}`;
-  if (outerName != nodeName) {
-    yield `${outerName}-->${nodeName}`;
+  let nodeLabel = keys.join(",");
+  if (node.size > 1) {
+    nodeLabel += `\\n<small>rank:${node.rank}, size:${node.size}</small>`;
   }
-  for (const [_key, child] of next) {
+
+  const nodeId = `node${keys.join("_")}`;
+  yield `${nodeId}[${nodeLabel}]`;
+  if (parentId !== "") {
+    yield `${parentId} --> ${nodeId}`;
+  }
+  const items: ReadonlyArray<[K, Node<K, R> | undefined]> | undefined =
+    node.items;
+  for (const [_key, child] of items) {
     if (child !== undefined) {
-      const keys = [...child.items].map(([key]) => key);
-      const childName = `${keys[0]}-${keys[keys.length - 1]}`;
-      yield `${nodeName}-->${childName}`;
-      yield* mermaidNodes(child);
+      yield* mermaidNodes(child, nodeId);
     }
   }
-  // next = next.next;
-  // }
-  const nextName = [...node.next?.items ?? []].at(0)?.[0];
-  if (nextName) {
-    yield `${outerName}-->${nextName}`;
-  }
-  yield* mermaidNodes(node.next);
+  yield* mermaidNodes(node.next, nodeId);
 }
 
 export function mermaidDiagram<K, R extends number>(tree: GeometricTree<K, R>) {

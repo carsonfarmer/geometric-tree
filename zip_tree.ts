@@ -120,7 +120,7 @@ export class BinaryZipTree<
   /**
    * Join another tree into this one.
    * @param other The other tree to join.
-   * All of the keys in the other tree must be greater than the keys in this tree.
+   * @invariant All of the keys in the other tree must be greater than the keys in this tree.
    * @returns A new tree with the two trees joined.
    */
   zip(other: BinaryZipTree<K, R>) {
@@ -218,8 +218,6 @@ export function insert<K, R extends number>(
     return singleton(item);
   }
   const [left, right] = unzip(item.key, root);
-  // TODO: While I like the functional style of this, it's not very efficient.
-  // It is easy to make a more efficient, but still recursive, version of this
   return zip(zip(left, singleton(item)), right);
 }
 

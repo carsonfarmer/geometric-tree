@@ -83,6 +83,65 @@ graph TD;
 7-67--3-2-->71-[71]
 ```
 
+## Geometric Trees
+
+To build an intuition for how to operate over these geometric trees, it is useful to review the zipping and unzipping operations as defined for zip-trees. We present slightly modified versions of these operations here, and note explicitly how insertion and deletion in zip-trees can be defined in terms of zip and unzip. Figure X shows the zip and unzip operations for a zip-tree, highlighting the paths involved in the (un)zipping operations.
+
+```bash
+function unzip(key, root, drop = 0)
+  if root = null then
+    return [null, null];
+  else if root.key == key then
+    right ← root.right
+    if drop = 0 then
+      left ← { ...root, right: null }
+    else
+      left ← root.left
+    return [left, right]
+  else if root.key < key then
+    [r, right] ← unzip(key, root.right, drop)
+    left ← { ...root, right: r }
+    return [left, right]
+  else
+    [left, l] ← unzip(key, root.left, drop)
+    right ← { ...root, left: l }
+    return [left, right]
+```
+
+Alg X provides a recursive, immutable, and purely functional variant of the unzip operation over a zip tree. The function takes a key and a tree, and returns a tuple of two trees. The first tree contains all of the items in the input tree with keys less than or equal to the input key, and the second tree contains all of the items in the input tree with keys greater than the input key. The drop parameter is used to control whether the input key is included in the left tree. If drop is 0, then the key is included in the left tree, otherwise it is not.
+
+```bash
+function zip(left, right)
+  if left = null then
+    return right
+  else if right = null then
+    return left
+  else if left.rank < right.rank then
+    l ← zip(left, right.left);
+    return { ...right, left: l };
+  else
+    r ← zip(left.right, right);
+    return { ...left, right: r }
+```
+
+Related, Alg Y provides a recursive, immutable, and purely functional variant of the zip operation over a zip-tree. The zip operation takes two trees, and returns a new tree with the two trees joined together. Note that the zip operation makes no reference to the keys of the nodes. As such, it requires that the left input tree contains only nodes with keys strictly less than the nodes of the right tree in order to maintain the ordering invariant of the tree.
+
+The zip operation is the inverse of the unzip operation, and the two operations can be used to implement insertion and deletion in a zip-tree. In both cases, the "spread" operator (i.e., ...) is used to copy the components of the subtree with the left or right child replaced/removed as needed.
+
+```bash
+function insert(item, root)
+  [left, right] ← unzip(item.key, root, false)
+  return zip(zip(left, item), right)
+
+function delete(key, root)
+  [left, right] ← unzip(key, root, true);
+  return zip(left, right);
+```
+
+In the above, item is an object with a key and rank property, and is treated implicitly as a tree with a single node. As in the original zip-tree algorithms, ... the insert operation unzips the tree at the input key, and then zips the left and right trees back together with the new item inserted. The delete operation is similar, but the left tree is zipped with the right tree without the input key.
+
+Note that more efficient versions of the above operations are certainly possible, including those provided in the original zip-tree paper. The above versions are provided for clarity and ease of translation to the higher-order trees, while also maintaining the time complexity of the original operations.
+
 ## Install
 
 There are no external dependencies for this project, and it is written in pure Typescript with Deno in mind as the runtime. For now, simply clone the repo and import the code directly into your work. See usage below for an example.
