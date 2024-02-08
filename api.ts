@@ -76,7 +76,7 @@ export interface ZipTree<K, R extends number> {
    * @param key The key to split the tree on.
    * @returns A tuple of the left and right trees.
    */
-  unzip(key: K): [ZipTree<K, R>, ZipTree<K, R>];
+  unzip(key: K): [ZipTree<K, R>, Item<K, R> | undefined, ZipTree<K, R>];
 
   /**
    * Join another tree into this one.

@@ -178,10 +178,10 @@ Deno.test({
     assertEquals(lastEmpty, ZipSequence.empty());
     const lastNull = ZipSequence.empty().last(5);
     assertEquals(lastNull, ZipSequence.empty());
-    const [, rightFive] = unzip(50, seq.root);
+    const [, , rightFive] = unzip(50, seq.root);
     assertEquals(lastFive.root, rightFive);
     const lastFifteen = seq.last(15);
-    const [, rightFifteen] = unzip(12, seq.root);
+    const [, , rightFifteen] = unzip(12, seq.root);
     assertEquals(lastFifteen.root, rightFifteen);
     // Original sequence should remain unchanged.
     assertEquals(seq.toArray(), frozen);
@@ -195,7 +195,7 @@ Deno.test({
     const seq = ZipSequence.from(frozen);
     const lastFive = seq.last(5);
     assertEquals(lastFive.length(), 5);
-    const [, rightFifteen] = unzip(12, seq.root);
+    const [, , rightFifteen] = unzip(12, seq.root);
     assertEquals(rightFifteen?.size, 15);
     const lastFifteen = seq.last(15);
     assertEquals(lastFifteen.length(), 15);

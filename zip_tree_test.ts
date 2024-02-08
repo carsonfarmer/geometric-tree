@@ -6,9 +6,9 @@ import {
   range,
   shuffle,
   sorted,
-  split,
 } from "./test_utils.ts";
 import { BinaryZipTree as ZipTree, mermaidDiagram } from "./zip_tree.ts";
+import { splitAt } from "./array_ops.ts";
 
 Deno.test({
   name: "from",
@@ -53,7 +53,7 @@ Deno.test({
   only: false,
   fn: () => {
     const tree = ZipTree.from(frozen);
-    const [removed, kept] = split(shuffle(frozen), 10);
+    const [removed, kept] = splitAt(shuffle(frozen), 10);
     let root = tree;
     for (const { key } of removed) {
       root = root.remove(key);
@@ -76,20 +76,25 @@ Deno.test({
   fn: () => {
     const tree = ZipTree.from(frozen);
     for (const i of shuffle(range(0, frozen.length - 1))) {
-      const [leftPairs, rightPairs] = split(frozen, i + 1);
+      const [leftPairs, rightPairs] = splitAt(frozen, i + 1);
       const _left = ZipTree.from(leftPairs);
       const _right = ZipTree.from(rightPairs);
 
       const splitValue = frozen[i].key;
-      const [left, right] = tree.unzip(splitValue);
-      assertEquals(left, _left, `mismatch at ${i}`);
+      const [left, target, right] = tree.unzip(splitValue);
+      assertEquals(
+        left.zip(ZipTree.singleton(target!)),
+        _left,
+        `mismatch at ${i}`,
+      );
       assertEquals(right, _right, `mismatch at ${i}`);
     }
     assertEquals(ZipTree.empty().unzip(0), [
       ZipTree.empty(),
+      undefined,
       ZipTree.empty(),
     ]);
-    const [left, right] = tree.unzip(100);
+    const [left, _, right] = tree.unzip(100);
     assertEquals(left, tree, `left should be full`);
     assertEquals(right, ZipTree.empty(), `right should be empty`);
   },
@@ -102,8 +107,10 @@ Deno.test({
     const tree = ZipTree.from(frozen);
     for (const i of shuffle(range(0, frozen.length - 1))) {
       const splitValue = frozen[i].key;
-      const [left, right] = tree.unzip(splitValue);
-      const root = left.zip(right);
+      const [left, target, right] = tree.unzip(splitValue);
+      // TODO: This really highlights the asymmetry of the unzip method.
+      // Is this a bad thing?
+      const root = left.zip(ZipTree.singleton(target!)).zip(right);
       assertEquals(tree, root, `mismatch at ${i}`);
     }
     // Also test alternative API
@@ -122,7 +129,7 @@ Deno.test({
   fn: () => {
     const tree = ZipTree.from(frozen);
     assertEquals(tree.length(), frozen.length);
-    const [left, right] = tree.unzip(50);
+    const [left, _, right] = tree.unzip(50);
     assertEquals(left?.length(), 15);
     assertEquals(right?.length(), 5);
 
@@ -168,7 +175,7 @@ Deno.test({
       tree = tree.insert({ key, rank });
     }
     let deleted = tree;
-    const [removed, remainder] = split(pairs, 100);
+    const [removed, remainder] = splitAt(pairs, 100);
     for (const { key } of removed) {
       deleted = deleted.remove(key);
     }
@@ -208,7 +215,7 @@ Deno.test({
     assertEquals(tree.toArray(), recreated.toArray());
 
     // Now try deleting in a different order
-    const [removed, remainder] = split(pairs, 100);
+    const [removed, remainder] = splitAt(pairs, 100);
     const sortedRemainder = sorted(remainder);
     for (const { key } of removed) {
       tree = tree.remove(key);
@@ -228,7 +235,7 @@ Deno.test({
     const tree = ZipTree.from(frozen);
     console.log(mermaidDiagram(tree));
 
-    const [left, right] = tree.unzip(47);
+    const [left, _, right] = tree.unzip(47);
     console.log(mermaidDiagram(left));
     console.log(mermaidDiagram(right));
   },
