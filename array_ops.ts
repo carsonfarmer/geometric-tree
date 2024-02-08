@@ -5,14 +5,32 @@ export function splitAt<T>(
   return [array.slice(0, i), array.slice(i)];
 }
 
-export function findIndex<T>(
+// export function findIndex<T>(
+//   array: ReadonlyArray<T>,
+//   predicate: (value: T, index?: number | undefined) => boolean,
+// ): number {
+//   return array.findIndex(predicate);
+// }
+
+export function find<T>(
   array: ReadonlyArray<T>,
   predicate: (value: T, index?: number | undefined) => boolean,
-): number {
-  return array.findIndex(predicate);
+): T | undefined {
+  return array.find(predicate);
 }
 
-export function concat<T>(...arrays: ReadonlyArray<T>[]): ReadonlyArray<T> {
+export function split<T>(
+  array: ReadonlyArray<T>,
+  predicate: (value: T, index?: number | undefined) => boolean,
+): [ReadonlyArray<T>, T | undefined, ReadonlyArray<T>] {
+  const i = array.findIndex(predicate);
+  if (i < 0) {
+    return [array, undefined, []];
+  }
+  return [array.slice(0, i), array.at(i), array.slice(i + 1)];
+}
+
+export function join<T>(...arrays: ReadonlyArray<T>[]): ReadonlyArray<T> {
   return arrays.flat();
 }
 
@@ -20,43 +38,28 @@ export function isEmpty<T>(array: ReadonlyArray<T>): boolean {
   return array.length === 0;
 }
 
-export function pushFront<T>(
+export function shift<T>(
   array: ReadonlyArray<T>,
   ...values: T[]
 ): ReadonlyArray<T> {
   return [...values, ...array];
 }
 
-export function pushBack<T>(
+export function push<T>(
   array: ReadonlyArray<T>,
   ...values: T[]
 ): ReadonlyArray<T> {
   return [...array, ...values];
 }
 
-export function popFront<T>(array: ReadonlyArray<T>): ReadonlyArray<T> {
-  return [...array].slice(1);
+export function unshift<T>(array: ReadonlyArray<T>): [ReadonlyArray<T>, T?] {
+  const rest = [...array].slice(1);
+  return [rest, array.at(0)];
 }
 
-// export function popFront<T>(array: ReadonlyArray<T>): [ReadonlyArray<T>, T?] {
-//   const [front, ...rest] = array;
-//   return [rest, front];
-// }
-
-export function popBack<T>(array: ReadonlyArray<T>): ReadonlyArray<T> {
-  return [...array].slice(0, -1);
-}
-
-// export function popBack<T>(array: ReadonlyArray<T>): [ReadonlyArray<T>, T?] {
-//   return popFront(array.toReversed());
-// }
-
-export function peekFront<T>(array: ReadonlyArray<T>): T | undefined {
-  return array.at(0);
-}
-
-export function peekBack<T>(array: ReadonlyArray<T>): T | undefined {
-  return array.at(-1);
+export function pop<T>(array: ReadonlyArray<T>): [ReadonlyArray<T>, T?] {
+  const rest = [...array].slice(0, -1);
+  return [rest, array.at(-1)];
 }
 
 export function pick<T>(array: ReadonlyArray<T>, i: number): T | undefined {
