@@ -1,3 +1,7 @@
+// Alternatives:
+// https://opendatastructures.org/ods-python/3_3_SEList_Space_Efficient_.html
+//
+
 /**
  * UnrolledList is singly-linked unrolled linked list.
  * It is a singly-linked list of nodes, where each node

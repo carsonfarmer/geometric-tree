@@ -37,7 +37,7 @@ export class ZipSequence<K, R extends number = number> {
    * @returns A ZipTree with the items from the array.
    */
   static from<K, R extends number = number>(
-    array: Array<Item<K, R>>,
+    array: ReadonlyArray<Item<K, R>>,
   ): ZipSequence<K, R> {
     const root = from(array);
     return new ZipSequence<K, R>(root);

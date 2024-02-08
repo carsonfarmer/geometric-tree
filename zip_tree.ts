@@ -52,7 +52,7 @@ export class BinaryZipTree<
    * @returns A ZipTree with the items from the array.
    */
   static from<K, R extends number = number>(
-    array: Array<Item<K, R>>,
+    array: ReadonlyArray<Item<K, R>>,
   ): BinaryZipTree<K, R> {
     const root = from(array);
     return new BinaryZipTree<K, R>(root);
@@ -109,10 +109,13 @@ export class BinaryZipTree<
    * @param key The key to split the tree on.
    * @returns A tuple of the left and right trees.
    */
-  unzip(key: K): [BinaryZipTree<K, R>, BinaryZipTree<K, R>] {
-    const [left, right] = unzip(key, this.root);
+  unzip(
+    key: K,
+  ): [BinaryZipTree<K, R>, Item<K, R> | undefined, BinaryZipTree<K, R>] {
+    const [left, node, right] = unzip(key, this.root);
     return [
       new BinaryZipTree<K, R>(left),
+      node,
       new BinaryZipTree<K, R>(right),
     ];
   }
@@ -120,7 +123,7 @@ export class BinaryZipTree<
   /**
    * Join another tree into this one.
    * @param other The other tree to join.
-   * All of the keys in the other tree must be greater than the keys in this tree.
+   * @invariant All of the keys in the other tree must be greater than the keys in this tree.
    * @returns A new tree with the two trees joined.
    */
   zip(other: BinaryZipTree<K, R>) {
@@ -178,7 +181,7 @@ export function singleton<K, R extends number>(item: Item<K, R>): Node<K, R> {
 }
 
 export function from<K, R extends number>(
-  array: Array<Item<K, R>>,
+  array: ReadonlyArray<Item<K, R>>,
 ): Node<K, R> | undefined {
   if (array.length == 0) {
     return undefined;
@@ -217,9 +220,7 @@ export function insert<K, R extends number>(
   if (root === undefined) {
     return singleton(item);
   }
-  const [left, right] = unzip(item.key, root);
-  // TODO: While I like the functional style of this, it's not very efficient.
-  // It is easy to make a more efficient, but still recursive, version of this
+  const [left, _, right] = unzip(item.key, root);
   return zip(zip(left, singleton(item)), right);
 }
 
@@ -261,7 +262,7 @@ export function remove<K, R extends number>(
   if (root === undefined) {
     return undefined;
   }
-  const [left, right] = unzip(key, root, true);
+  const [left, _, right] = unzip(key, root);
   return zip(left, right);
 }
 
@@ -275,23 +276,22 @@ export function remove<K, R extends number>(
 export function unzip<K, R extends number>(
   key: K,
   root?: Node<K, R>,
-  drop = false,
-): [Node<K, R> | undefined, Node<K, R> | undefined] {
+): [Node<K, R> | undefined, Item<K, R> | undefined, Node<K, R> | undefined] {
   if (root === undefined) {
-    return [undefined, undefined];
+    return [undefined, undefined, undefined];
   }
   if (root.key == key) {
     const right = root.right;
-    const left = drop ? root.left : sized({ ...root, right: undefined });
-    return [left, right];
+    const left = root.left;
+    return [left, { key, rank: root.rank }, right];
   } else if (root.key < key) {
-    const [_right, right] = unzip(key, root.right, drop);
-    const left = sized({ ...root, right: _right });
-    return [left, right];
+    const [next, n, right] = unzip(key, root.right);
+    const left = sized({ ...root, right: next });
+    return [left, n, right];
   } else {
-    const [left, _left] = unzip(key, root.left, drop);
-    const right = sized({ ...root, left: _left });
-    return [left, right];
+    const [left, n, prev] = unzip(key, root.left);
+    const right = sized({ ...root, left: prev });
+    return [left, n, right];
   }
 }
 

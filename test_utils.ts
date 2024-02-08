@@ -5,7 +5,6 @@ export {
 } from "https://deno.land/std@0.202.0/assert/mod.ts";
 import { Item } from "./api.ts";
 import { geometric } from "./utils.ts";
-export { split } from "./utils.ts";
 
 export const pairs = [
   [2, 1], /// 0
@@ -45,21 +44,21 @@ export function shuffle<T>(array: ReadonlyArray<T>): Array<T> {
   return copy;
 }
 
-export function random(n = 10): Item<number, number>[] {
+export function random(n = 10, p = 0.5): Array<Item<number, number>> {
   const factor = Math.floor(n / 10);
   const pairs: Item<number, number>[] = [];
   const keys = new Set<number>();
   while (pairs.length < n) {
-    const key = Math.floor(Math.random() * 10 * factor);
+    const key = Math.floor(Math.random() * 100 * factor);
     if (!keys.has(key)) {
       keys.add(key);
-      const rank = geometric(0.5);
+      const rank = geometric(p);
       pairs.push({ key, rank });
     }
   }
   return pairs;
 }
 
-export function sorted(items: Item<number, number>[]) {
+export function sorted(items: ReadonlyArray<Item<number, number>>) {
   return items.toSorted(({ key: a }, { key: b }) => a - b);
 }

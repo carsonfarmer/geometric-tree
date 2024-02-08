@@ -29,12 +29,6 @@ export function geometric(p: number) {
   return Math.floor(Math.log(Math.random()) / Math.log(1 - p));
 }
 
-export function split<T>(array: T[], index: number): [T[], T[]] {
-  const left = array.slice(0, index);
-  const right = array.slice(index);
-  return [left, right];
-}
-
 export function pad<T>(
   array: T[],
   length: number,
@@ -45,4 +39,41 @@ export function pad<T>(
     () => undefined,
   );
   return front ? [...padding, ...array] : [...array, ...padding];
+}
+
+/**
+ * Find all indices of array where predicate returns `true`.
+ * @param array The array to process.
+ * @param predicate The function invoked per iteration.
+ * @returns Returns an array of all indices for which the predicate function returns `true`.
+ */
+export function splits<T>(
+  array: ReadonlyArray<T>,
+  predicate: (element: T, index: number) => boolean,
+): ReadonlyArray<number> {
+  const initial: number[] = [];
+  return array.reduce(
+    (indices, element, index) =>
+      predicate(element, index) ? [...indices, index] : indices,
+    initial,
+  );
+}
+
+/**
+ * Split an array into multiple subsets using an array of indices.
+ * The elements at the "found" indices are not included in the subsets.
+ * @param array The array to process.
+ * @param indices The indices at which to split the original array.
+ * @returns Returns an array of the resulting subsets.
+ */
+export function subsets<T>(
+  array: ReadonlyArray<T>,
+  indices: ReadonlyArray<number>,
+): ReadonlyArray<ReadonlyArray<T>> {
+  const indexes = [-1, ...indices, array.length];
+  return indexes
+    .map((value, index, arr) =>
+      index < arr.length - 1 ? array.slice(value + 1, arr[index + 1]) : null
+    )
+    .filter((x) => x != null) as unknown as T[][];
 }

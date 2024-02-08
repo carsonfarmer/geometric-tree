@@ -1,22 +1,20 @@
 import { Item, ZipTree } from "./api.ts";
-import { splits, subsets } from "./b_zip_tree.ts";
+import { splits, subsets } from "./utils.ts";
 import {
-  concat,
-  findIndex,
+  find,
   isEmpty,
-  peekBack,
-  peekFront,
-  pick,
-  popBack,
-  popFront,
-  pushBack,
-  pushFront,
-  splitAt,
+  join,
+  push,
+  shift,
+  split,
+  unshift,
 } from "./array_ops.ts";
+
+export type Pair<K, R extends number = number> = [key: K, value?: Node<K, R>];
 
 export interface Node<K, R extends number = number> {
   rank: R;
-  items: ReadonlyArray<[K, Node<K, R> | undefined]>;
+  items: ReadonlyArray<Pair<K, R>>;
   size: number;
   next?: Node<K, R>;
 }
@@ -28,15 +26,14 @@ export class GeometricTree<K, R extends number = number>
      * The root node of the tree.
      */
     public root?: Node<K, R>,
-    public k = Infinity,
   ) {}
 
   /**
    * Create an empty GeneralizedZipTree.
    * @returns An empty GeneralizedZipTree.
    */
-  static empty<K, R extends number = number>(k = Infinity) {
-    return new GeometricTree<K, R>(undefined, k);
+  static empty<K, R extends number = number>() {
+    return new GeometricTree<K, R>(undefined);
   }
 
   /**
@@ -46,9 +43,8 @@ export class GeometricTree<K, R extends number = number>
    */
   static singleton<K, R extends number = number>(
     item: Item<K, R>,
-    k = Infinity,
   ) {
-    return new GeometricTree<K, R>(singleton(item), k);
+    return new GeometricTree<K, R>(singleton(item));
   }
 
   /**
@@ -57,11 +53,10 @@ export class GeometricTree<K, R extends number = number>
    * @returns A GeneralizedZipTree with the items from the array.
    */
   static from<K, R extends number = number>(
-    array: Array<Item<K, R>>,
-    k = Infinity,
+    array: ReadonlyArray<Item<K, R>>,
   ) {
-    const root = from(array, k);
-    return new GeometricTree<K, R>(root, k);
+    const root = from(array);
+    return new GeometricTree<K, R>(root);
   }
 
   /**
@@ -115,9 +110,15 @@ export class GeometricTree<K, R extends number = number>
    * @param key The key to split the tree on.
    * @returns A tuple of the left and right trees.
    */
-  unzip(key: K): [GeometricTree<K, R>, GeometricTree<K, R>] {
-    const [left, right] = unzip(key, this.root);
-    return [new GeometricTree<K, R>(left), new GeometricTree<K, R>(right)];
+  unzip(
+    key: K,
+  ): [GeometricTree<K, R>, Item<K, R> | undefined, GeometricTree<K, R>] {
+    const [left, node, right] = unzip(key, this.root);
+    return [
+      new GeometricTree<K, R>(left),
+      node,
+      new GeometricTree<K, R>(right),
+    ];
   }
 
   /**
@@ -128,7 +129,7 @@ export class GeometricTree<K, R extends number = number>
    */
   zip(other: GeometricTree<K, R>) {
     const root = zip(this.root, other.root);
-    return new GeometricTree<K, R>(root, this.k);
+    return new GeometricTree<K, R>(root);
   }
 
   /**
@@ -182,12 +183,15 @@ export function sized<K, R extends number>(
   return { ...node, size };
 }
 
+export function normalize<K, R extends number>(
+  node: Omit<Node<K, R>, "size">,
+): Node<K, R> | undefined {
+  return isEmpty(node.items) ? node.next : sized(node);
+}
+
 export function singleton<K, R extends number>(
   item: Item<K, R>,
-  k = Infinity,
 ): Node<K, R> {
-  // const items = new Array<[K, Node<K, R> | undefined]>(k);
-  // items.push([item.key, undefined]);
   const items = Array.from<[K, Node<K, R> | undefined]>([[
     item.key,
     undefined,
@@ -201,27 +205,23 @@ export function singleton<K, R extends number>(
 }
 
 export function from<K, R extends number>(
-  values: Item<K, R>[],
-  k = Infinity,
+  values: ReadonlyArray<Item<K, R>>,
+  cls = Array<[K, Node<K, R> | undefined]>,
 ): Node<K, R> | undefined {
   if (values.length == 0) {
     return undefined;
   } else if (values.length == 1) {
-    return singleton(values[0], k);
+    return singleton(values[0]);
   }
-  // TODO: This is of course, not efficient... we can do this in a single pass!
   const rank = Math.max(...values.map(({ rank }) => rank)) as R;
-  const _splits = splits(values, ({ rank: r }) => r === rank); // .slice(0, k - 1);
+  const _splits = splits(values, ({ rank: r }) => r === rank);
   const keys = _splits.map((index) => values[index]);
-  // At the moment, we're hard-coding the unrolled linked list (and parameterize it by k)
-  // We should be able to parameterize the the list constructor instead
-  const children = subsets(values, _splits).map((subset) => from(subset, k));
-  // const items = new Array<[K, Node<K, R> | undefined]>(k);
-  const items: Array<[K, Node<K, R> | undefined]> = [];
-  for (let i = 0; i < keys.length; i++) {
-    items.push([keys[i].key, children[i]]);
+  const children = subsets(values, _splits).map((subset) => from(subset, cls));
+  const items = new cls(keys.length);
+  for (const [i, key] of keys.entries()) {
+    items[i] = [key.key, children[i]];
   }
-  return sized({
+  return normalize({
     items,
     rank,
     next: children.at(-1),
@@ -235,19 +235,12 @@ export function search<K, R extends number>(
   if (root === undefined) {
     return undefined;
   }
-  const index = findIndex(root.items, ([_key]) => _key >= key);
-  if (index < 0) {
-    return search(key, root.next);
-  } else {
-    const item = pick(root.items, index);
-    if (item !== undefined) {
-      if (item[0] === key) {
-        return { key: item[0] as K, rank: root.rank };
-      } else {
-        return search(key, item[1]);
-      }
-    }
+  const item = find(root.items, ([k]) => k >= key);
+  if (item?.[0] === key) {
+    return { key: item[0], rank: root.rank };
   }
+  const next = item ? item[1] : root.next;
+  return search(key, next);
 }
 
 /**
@@ -264,7 +257,7 @@ export function insert<K, R extends number>(
   if (root === undefined) {
     return singleton(item);
   }
-  const [left, right] = unzip(item.key, root);
+  const [left, _, right] = unzip(item.key, root);
   return zip(zip(left, singleton(item)), right);
 }
 
@@ -278,7 +271,7 @@ export function remove<K, R extends number>(
   if (root === undefined) {
     return undefined;
   }
-  const [left, right] = unzip(key, root, true);
+  const [left, _, right] = unzip(key, root);
   return zip(left, right);
 }
 
@@ -286,80 +279,34 @@ export function remove<K, R extends number>(
  * Split the input tree into two balanced sub-trees.
  * @param key The key to split the tree on.
  * @param root The root node of the tree.
- * @param drop Whether to drop the node with the given key. Defaults to false for normal unzipping.
  * @returns A tuple of the left and right trees.
  */
 export function unzip<K, R extends number>(
   key: K,
   root?: Node<K, R>,
-  drop = false,
-): [Node<K, R> | undefined, Node<K, R> | undefined] {
+): [Node<K, R> | undefined, Item<K, R> | undefined, Node<K, R> | undefined] {
   if (root === undefined) {
-    // Early out for when root is missing.
-    return [undefined, undefined];
+    return [undefined, undefined, undefined];
   }
-  // Find the index of the key in the items list.
-  const index = findIndex(root.items, ([_key]) => _key >= key);
-  if (index < 0) {
-    // Deal with the "special case" that key is within the "next" node.
-    if (root.next !== undefined) {
-      const [next, right] = unzip(key, root.next, drop);
-      return [sized({ ...root, next }), right];
-    }
-    // If we don't find it, we're done, just return the whole root.
-    return [root, undefined];
-  }
-  // We simply split the root node at the index.
-  let [__left, __right] = splitAt(root.items, index + 1);
-  // Otherwise, we found the key (or a larger key)...
-  const [_key, item] = peekBack(__left)!;
-  if (_key === key) {
-    // If we actually landed on a root with that key, split the root...
-    // Just for symmetry
-    let [_left, _right]: [Node<K, R>?, Node<K, R>?] = [undefined, root.next];
-    if (drop) {
-      // If we want to drop the target, this is the only place we have to do that.
-      // We simply remove the item at the index, and assign its children to the
-      // "next" pointer of the left subtree (which would always be undefined otherwise)
-      __left = popBack(__left);
-      _left = item;
-    }
-    // And then form the left and right trees, from the split items.
-    // But, if either set of items are empty, we "promote" the "next" pointer
-    // as the root of that subtree.
-    const left = isEmpty(__left) ? _left : sized({
-      ...root,
-      items: __left,
-      next: _left,
-    });
-    const right = isEmpty(__right) ? _right : sized({
-      ...root,
-      items: __right,
-    });
-    return [left, right];
+  const [lefts, node, rights] = split(
+    root.items,
+    ([k]) => k >= key,
+  );
+  if (node === undefined) {
+    const [next, n, right] = unzip(key, root.next);
+    const left = normalize({ ...root, next });
+    return [left, n, right];
+  } else if (node[0] === key) {
+    const left = normalize({ ...root, items: lefts, next: node[1] });
+    const right = normalize({ ...root, items: rights });
+    const n = { key: node[0], rank: root.rank };
+    return [left, n, right];
   } else {
-    // If we didn't land on a root with that key, we split the child...
-    // Recursively unzip, and these will form our "next" pointer on the left
-    // and the first element of the right items list.
-    const [_left, _right] = unzip(key, item, drop);
-    // Same process as before, we split the items at the index...
-    __left = popBack(__left);
-    // But we move the right "next" pointer "up" to the right items...
-    __right = pushFront(__right, [_key, _right]);
-    // And form the left and right trees, from the split items.
-    // Again, if either set of items are empty, we "promote" the "next" pointer
-    // as the root of that subtree.
-    const left = isEmpty(__left) ? _left : sized({
-      ...root,
-      items: __left,
-      next: _left,
-    });
-    // Except in this case, the right side always takes on the root's "next" pointer.
-    const right = isEmpty(__right) ? _right : sized({
-      ...root,
-      items: __right,
-    });
-    return [left, right];
+    const [next, n, inner] = unzip(key, node?.[1]);
+    const left = normalize({ ...root, items: lefts, next });
+    const newRights = shift<Pair<K, R>>(rights, [node![0], inner]);
+    const right = normalize({ ...root, items: newRights });
+    return [left, n, right];
   }
 }
 
@@ -368,50 +315,25 @@ export function zip<K, R extends number>(
   right?: Node<K, R>,
 ): Node<K, R> | undefined {
   if (left === undefined) {
-    // Early out for when left is missing.
     return right;
   }
   if (right === undefined) {
-    // Early out for when right is missing.
     return left;
   }
   if (left.rank == right.rank) {
-    // For nodes with equal rank...
-    let leftItems = left.items;
-    let rightItems = right.items;
-    // If we're also storing a pointer to the "next" node, we need to
-    // zip that with the right side.
-    if (left.next !== undefined) {
-      const innerRight = peekFront(rightItems);
-      rightItems = popFront(rightItems);
-      if (innerRight === undefined) {
-        throw new Error("invariant violation");
-      }
-      const inner = zip(left.next, innerRight[1]);
-      leftItems = pushBack(leftItems, [innerRight[0], inner]);
-    }
-    // In both cases, we concat the two item lists.
-    const items = concat(leftItems, rightItems);
-    // And move the right next pointer "up" to the root.
-    return sized({ rank: left.rank, items, next: right.next });
+    const [rights, child] = unshift(right.items);
+    const inner = zip(left.next, child?.[1]);
+    const lefts = push<Pair<K, R>>(left.items, [child![0], inner]);
+    const items = join(lefts, rights);
+    return normalize({ ...right, items });
   } else if (left.rank < right.rank) {
-    // If the left side has rank less than the right side...
-    // We zip the left side with the first right child...
-    const child = peekFront(right.items);
-    const _left = zip(left, child?.[1]);
-    // And then replace the first right child with the zipped left side.
-    const rightItems: readonly [K, Node<K, R> | undefined][] = pushFront(
-      popFront(right.items),
-      [child![0], _left],
-    );
-    // And return the new updated right side as the root.
-    return sized({ ...right, items: rightItems });
+    const [rights, child] = unshift(right.items);
+    const inner = zip(left, child?.[1]);
+    const items = shift<Pair<K, R>>(rights, [child![0], inner]);
+    return normalize({ ...right, items });
   } else {
-    // Otherwise, the right side has rank less than the left side...
-    // So we can simply point to it as the next node of the left side.
-    // TODO: It is possible that the zipping with next isn't needed.
     const next = zip(left.next, right);
-    return sized({ ...left, next });
+    return normalize({ ...left, next });
   }
 }
 
@@ -430,35 +352,29 @@ export function* iter<K, R extends number>(
 
 function* mermaidNodes<K, R extends number>(
   node?: Node<K, R>,
+  parentId = "",
 ): Generator<string> {
   if (node === undefined) {
     return;
   }
   const keys = [...node.items].map(([key]) => key);
-  const outerName = `${keys[0]}-${keys[keys.length - 1]}`;
-  const next: ReadonlyArray<[K, Node<K, R> | undefined]> | undefined =
-    node.items;
-  // while (next !== undefined) {
-  // const keys = [...next].map(([key]) => key);
-  const nodeName = `${keys[0]}-${keys[keys.length - 1]}`;
-  if (outerName != nodeName) {
-    yield `${outerName}-->${nodeName}`;
+  let nodeLabel = keys.join(",");
+  if (node.size > 1) {
+    nodeLabel += `\\n<small>rank:${node.rank}, size:${node.size}</small>`;
   }
-  for (const [_key, child] of next) {
+
+  const nodeId = `node${keys.join("_")}`;
+  yield `${nodeId}[${nodeLabel}]`;
+  if (parentId !== "") {
+    yield `${parentId} --> ${nodeId}`;
+  }
+  const items: ReadonlyArray<Pair<K, R>> | undefined = node.items;
+  for (const [_key, child] of items) {
     if (child !== undefined) {
-      const keys = [...child.items].map(([key]) => key);
-      const childName = `${keys[0]}-${keys[keys.length - 1]}`;
-      yield `${nodeName}-->${childName}`;
-      yield* mermaidNodes(child);
+      yield* mermaidNodes(child, nodeId);
     }
   }
-  // next = next.next;
-  // }
-  const nextName = [...node.next?.items ?? []].at(0)?.[0];
-  if (nextName) {
-    yield `${outerName}-->${nextName}`;
-  }
-  yield* mermaidNodes(node.next);
+  yield* mermaidNodes(node.next, nodeId);
 }
 
 export function mermaidDiagram<K, R extends number>(tree: GeometricTree<K, R>) {
