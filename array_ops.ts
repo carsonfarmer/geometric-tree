@@ -41,23 +41,23 @@ export function isEmpty<T>(array: ReadonlyArray<T>): boolean {
 export function shift<T>(
   array: ReadonlyArray<T>,
   ...values: T[]
-): ReadonlyArray<T> {
+): Array<T> {
   return [...values, ...array];
 }
 
 export function push<T>(
   array: ReadonlyArray<T>,
   ...values: T[]
-): ReadonlyArray<T> {
+): Array<T> {
   return [...array, ...values];
 }
 
-export function unshift<T>(array: ReadonlyArray<T>): [ReadonlyArray<T>, T?] {
+export function unshift<T>(array: ReadonlyArray<T>): [Array<T>, T?] {
   const rest = [...array].slice(1);
   return [rest, array.at(0)];
 }
 
-export function pop<T>(array: ReadonlyArray<T>): [ReadonlyArray<T>, T?] {
+export function pop<T>(array: ReadonlyArray<T>): [Array<T>, T?] {
   const rest = [...array].slice(0, -1);
   return [rest, array.at(-1)];
 }

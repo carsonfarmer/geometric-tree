@@ -24,9 +24,22 @@ export function rank(integer: bigint) {
  * This function uses the inverse transform method to generate random values.
  * @param p The probability of success in a Bernoulli trial.
  * @returns A random value from the geometric distribution with parameter `p`.
+ * @see https://math.stackexchange.com/a/3530370
  */
-export function geometric(p: number) {
-  return Math.floor(Math.log(Math.random()) / Math.log(1 - p));
+export function geometric(p = 0.5) {
+  return Math.floor(Math.log(Math.random()) / Math.log(p));
+}
+
+/**
+ * Generate a random value from a geometric distribution with probability `p` truncated at `beta`.
+ * @param p The probability of success in a Bernoulli trial.
+ * @returns A random value from the geometric distribution with parameter `p`.
+ * @see https://math.stackexchange.com/a/3530370
+ */
+export function truncGeometric(beta: number, p = 0.5) {
+  return Math.floor(
+    Math.log(1 - Math.random() * (1 - Math.pow(p, beta))) / Math.log(p),
+  );
 }
 
 export function pad<T>(

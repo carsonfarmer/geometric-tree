@@ -1,5 +1,4 @@
 import { Item, ZipTree } from "./api.ts";
-import { splits, subsets } from "./utils.ts";
 import {
   find,
   isEmpty,
@@ -10,30 +9,31 @@ import {
   unshift,
 } from "./array_ops.ts";
 
-export type Pair<K, R extends number = number> = [key: K, value?: Node<K, R>];
+export type Pair<K> = { key: K; value?: Node<K> };
 
-export interface Node<K, R extends number = number> {
-  rank: R;
-  items: ReadonlyArray<Pair<K, R>>;
+export { type Item };
+
+export interface Node<K> {
+  rank: number;
+  items: ReadonlyArray<Pair<K>>;
   size: number;
-  next?: Node<K, R>;
+  next?: Node<K>;
 }
 
-export class GeometricTree<K, R extends number = number>
-  implements ZipTree<K, R> {
+export class GeometricTree<K> implements ZipTree<K> {
   constructor(
     /**
      * The root node of the tree.
      */
-    public root?: Node<K, R>,
+    public root?: Node<K>,
   ) {}
 
   /**
    * Create an empty GeneralizedZipTree.
    * @returns An empty GeneralizedZipTree.
    */
-  static empty<K, R extends number = number>() {
-    return new GeometricTree<K, R>(undefined);
+  static empty<K>() {
+    return new GeometricTree<K>(undefined);
   }
 
   /**
@@ -41,10 +41,10 @@ export class GeometricTree<K, R extends number = number>
    * @param item The item to insert into the tree.
    * @returns A GeneralizedZipTree with a single item.
    */
-  static singleton<K, R extends number = number>(
-    item: Item<K, R>,
+  static singleton<K>(
+    item: Item<K>,
   ) {
-    return new GeometricTree<K, R>(singleton(item));
+    return new GeometricTree<K>(singleton(item));
   }
 
   /**
@@ -52,11 +52,11 @@ export class GeometricTree<K, R extends number = number>
    * @param array The array of items to insert into the tree. The array must be pre-sorted by key.
    * @returns A GeneralizedZipTree with the items from the array.
    */
-  static from<K, R extends number = number>(
-    array: ReadonlyArray<Item<K, R>>,
+  static from<K>(
+    array: ReadonlyArray<Item<K>>,
   ) {
     const root = from(array);
-    return new GeometricTree<K, R>(root);
+    return new GeometricTree<K>(root);
   }
 
   /**
@@ -90,9 +90,9 @@ export class GeometricTree<K, R extends number = number>
    * @param item The item to insert.
    * @returns A new tree with the item inserted.
    */
-  insert(item: Item<K, R>) {
+  insert(item: Item<K>) {
     const root = insert(item, this.root);
-    return new GeometricTree<K, R>(root);
+    return new GeometricTree<K>(root);
   }
 
   /**
@@ -102,7 +102,7 @@ export class GeometricTree<K, R extends number = number>
    */
   remove(key: K) {
     const root = remove(key, this.root);
-    return new GeometricTree<K, R>(root);
+    return new GeometricTree<K>(root);
   }
 
   /**
@@ -112,12 +112,12 @@ export class GeometricTree<K, R extends number = number>
    */
   unzip(
     key: K,
-  ): [GeometricTree<K, R>, Item<K, R> | undefined, GeometricTree<K, R>] {
+  ): [GeometricTree<K>, Item<K> | undefined, GeometricTree<K>] {
     const [left, node, right] = unzip(key, this.root);
     return [
-      new GeometricTree<K, R>(left),
+      new GeometricTree<K>(left),
       node,
-      new GeometricTree<K, R>(right),
+      new GeometricTree<K>(right),
     ];
   }
 
@@ -127,9 +127,9 @@ export class GeometricTree<K, R extends number = number>
    * All of the keys in the other tree must be greater than the keys in this tree.
    * @returns A new tree with the two trees joined.
    */
-  zip(other: GeometricTree<K, R>) {
+  zip(other: GeometricTree<K>) {
     const root = zip(this.root, other.root);
-    return new GeometricTree<K, R>(root);
+    return new GeometricTree<K>(root);
   }
 
   /**
@@ -139,12 +139,12 @@ export class GeometricTree<K, R extends number = number>
    * All of the keys in the right tree must be greater than the keys in the left tree.
    * @returns A new tree with the two trees joined.
    */
-  static zip<K, R extends number>(
-    left: GeometricTree<K, R>,
-    right: GeometricTree<K, R>,
+  static zip<K>(
+    left: GeometricTree<K>,
+    right: GeometricTree<K>,
   ) {
     const root = zip(left.root, right.root);
-    return new GeometricTree<K, R>(root);
+    return new GeometricTree<K>(root);
   }
 
   /**
@@ -167,35 +167,35 @@ export class GeometricTree<K, R extends number = number>
    * Return an array of the in-order items in the tree.
    * @returns An array of the in-order items in the tree.
    */
-  toArray(): Array<Item<K, R>> {
+  toArray(): Array<Item<K>> {
     return [...iter(this.root)];
   }
 }
 
-export function sized<K, R extends number>(
-  node: Omit<Node<K, R>, "size">,
-): Node<K, R> {
+export function sized<K>(
+  node: Omit<Node<K>, "size">,
+): Node<K> {
   let size = 0;
   for (const item of node.items) {
-    size += (item?.[1]?.size ?? 0) + 1;
+    size += (item?.value?.size ?? 0) + 1;
   }
   size += node.next?.size ?? 0;
   return { ...node, size };
 }
 
-export function normalize<K, R extends number>(
-  node: Omit<Node<K, R>, "size">,
-): Node<K, R> | undefined {
+export function norm<K>(
+  node: Omit<Node<K>, "size">,
+): Node<K> | undefined {
   return isEmpty(node.items) ? node.next : sized(node);
 }
 
-export function singleton<K, R extends number>(
-  item: Item<K, R>,
-): Node<K, R> {
-  const items = Array.from<[K, Node<K, R> | undefined]>([[
-    item.key,
-    undefined,
-  ]]);
+export function singleton<K>(
+  item: Item<K>,
+): Node<K> {
+  const items = Array.from<Pair<K>>([{
+    key: item.key,
+    value: undefined,
+  }]);
   return {
     items,
     rank: item.rank,
@@ -204,42 +204,154 @@ export function singleton<K, R extends number>(
   };
 }
 
-export function from<K, R extends number>(
-  values: ReadonlyArray<Item<K, R>>,
-  cls = Array<[K, Node<K, R> | undefined]>,
-): Node<K, R> | undefined {
+export function from<K>(
+  values: ReadonlyArray<Item<K>>,
+  cls = Array<Pair<K>>,
+): Node<K> | undefined {
   if (values.length == 0) {
     return undefined;
-  } else if (values.length == 1) {
-    return singleton(values[0]);
   }
-  const rank = Math.max(...values.map(({ rank }) => rank)) as R;
-  const _splits = splits(values, ({ rank: r }) => r === rank);
-  const keys = _splits.map((index) => values[index]);
-  const children = subsets(values, _splits).map((subset) => from(subset, cls));
-  const items = new cls(keys.length);
-  for (const [i, key] of keys.entries()) {
-    items[i] = [key.key, children[i]];
+  const rank = Math.max(...values.map((item) => item.rank));
+  const splits = Array
+    .from(values.entries())
+    .filter(([, item]) => item.rank === rank)
+    .map(([i]) => i);
+  let items = new cls();
+  let prev = 0;
+  for (let i = 0; i < splits.length; i++) {
+    const subset = values.slice(prev, splits[i]);
+    items = push(items, {
+      key: values[splits[i]].key,
+      value: from(subset, cls),
+    });
+    prev = splits[i] + 1;
   }
-  return normalize({
-    items,
-    rank,
-    next: children.at(-1),
-  });
+  const next = from(values.slice(prev), cls);
+  return norm({ items, rank, next });
 }
 
-export function search<K, R extends number>(
+export function fromAtLeafs<K>(
+  values: ReadonlyArray<Item<K>>,
+  cls = Array<Pair<K>>,
+): Node<K> | undefined {
+  if (values.length == 0) {
+    return undefined;
+  }
+  const rank = Math.max(...values.map((item) => item.rank).slice(1));
+  const splits = Array
+    .from(values.entries())
+    .filter(([, item]) => item.rank === rank)
+    .map(([i]) => i);
+  if (rank === 1 || values.length === 1) {
+    const pointer = {
+      items: values,
+      rank: Math.max(rank, 1),
+      size: values.length,
+    };
+    console.log("early", pointer);
+    return pointer;
+  }
+  let items = new cls();
+  let prev = 0;
+  for (let i = 0; i < splits.length; i++) {
+    const subset = values.slice(prev, splits[i]);
+    const value = fromAtLeafs(subset, cls);
+    if (value?.rank === 1) {
+      console.log("late", value);
+    }
+    items = push(items, {
+      key: values[splits[i]].key,
+      value,
+    });
+    prev = splits[i];
+  }
+  const next = fromAtLeafs(values.slice(prev), cls);
+  return norm({ items, rank, next });
+}
+
+type PPair<K> = { key: K; value?: PNode<K> };
+
+type Pointer<K> = PNode<K> & { pointer: true };
+
+interface PNode<K> {
+  rank: number;
+  items: ReadonlyArray<PPair<K>>;
+  size: number;
+  next?: PNode<K> | Pointer<K>;
+}
+
+// export function fromAtLeafWithPointers<K>(
+//   values: ReadonlyArray<Item<K>>,
+//   cls = Array<PPair<K>>,
+//   other: PNode<K> | undefined = undefined,
+// ): [PNode<K>?, Pointer<K>?] {
+//   if (values.length == 0) {
+//     return [undefined, undefined];
+//   }
+//   const rank = Math.max(...values.map((item) => item.rank).slice(1));
+//   const splits = Array
+//     .from(values.entries())
+//     .filter(([, item]) => item.rank === rank)
+//     .map(([i]) => i);
+//   if (rank === 1 || values.length === 1) {
+//     const pointer = {
+//       items: values,
+//       rank: Math.max(rank, 1),
+//       size: values.length,
+//       next: undefined,
+//     };
+//     return [pointer, { ...pointer, pointer: true }];
+//   }
+//   let items = new cls();
+//   let prev = 0;
+//   let lastLeaf: PNode<K> | undefined = undefined;
+//   let first = true;
+//   for (let i = 0; i < splits.length; i++) {
+//     const subset = values.slice(prev, splits[i]);
+//     const [value, leaf]: [PNode<K>?, Pointer<K>?] = fromAtLeafWithPointers(
+//       subset,
+//       cls,
+//       lastLeaf?.next,
+//     );
+//     if (other && other.rank === 1 && first && value) {
+//       other.next = { ...value, pointer: true };
+//       first = false;
+//     }
+//     if (lastLeaf !== undefined && lastLeaf.rank === 1 && leaf) {
+//       lastLeaf.next = { ...leaf, pointer: true };
+//     }
+//     items = push(items, {
+//       key: values[splits[i]].key,
+//       value,
+//     });
+//     prev = splits[i];
+//     lastLeaf = value;
+//   }
+//   const [next, leaf] = fromAtLeafWithPointers(
+//     values.slice(prev),
+//     cls,
+//     lastLeaf?.next,
+//   );
+//   if (lastLeaf !== undefined && lastLeaf.rank === 1 && leaf) {
+//     lastLeaf.next = { ...leaf, pointer: true };
+//   }
+//   const pointer = norm({ items, rank, next });
+//   return [pointer, leaf];
+// }
+
+export function search<K>(
   key: K,
-  root?: Node<K, R>,
-): Item<K, R> | undefined {
+  root?: Node<K>,
+): (Item<K> & { size: number }) | undefined {
   if (root === undefined) {
     return undefined;
   }
-  const item = find(root.items, ([k]) => k >= key);
-  if (item?.[0] === key) {
-    return { key: item[0], rank: root.rank };
+  const item = find(root.items, (item) => item.key >= key);
+  if (item?.key === key) {
+    const size = item.value?.size ?? 0;
+    return { key: item.key, rank: root.rank, size };
   }
-  const next = item ? item[1] : root.next;
+  const next = item ? item.value : root.next;
   return search(key, next);
 }
 
@@ -250,10 +362,10 @@ export function search<K, R extends number>(
  * curry them by injecting the correct (un)zip function. But for now, we'll
  * keep them separate.
  */
-export function insert<K, R extends number>(
-  item: Item<K, R>,
-  root?: Node<K, R>,
-): Node<K, R> | undefined {
+export function insert<K>(
+  item: Item<K>,
+  root?: Node<K>,
+): Node<K> | undefined {
   if (root === undefined) {
     return singleton(item);
   }
@@ -264,10 +376,10 @@ export function insert<K, R extends number>(
 /**
  * Again, this is identical to the remove operation in the ZipTree implementation.
  */
-export function remove<K, R extends number>(
+export function remove<K>(
   key: K,
-  root?: Node<K, R>,
-): Node<K, R> | undefined {
+  root?: Node<K>,
+): Node<K> | undefined {
   if (root === undefined) {
     return undefined;
   }
@@ -276,88 +388,167 @@ export function remove<K, R extends number>(
 }
 
 /**
+ * unzip function that uses continuation-passing style to achieve tail recursion.
+ * @param key The search key.
+ * @param root The root node.
+ * @param cont Continuation function.
+ * @returns Tuple of the left, target, and right trees.
+ */
+export function unzip<K>(
+  key: K,
+  root?: Node<K>,
+  cont: (
+    left?: Node<K>,
+    n?: Item<K>,
+    right?: Node<K>,
+  ) => [Node<K>?, Item<K>?, Node<K>?] = (l, n, r) => [l, n, r],
+): [Node<K>?, Item<K>?, Node<K>?] {
+  if (root === undefined) {
+    return cont(undefined, undefined, undefined);
+  }
+  const [lefts, node, rights] = split(
+    root.items,
+    (item) => item.key >= key,
+  );
+  if (node === undefined) {
+    return unzip(key, root.next, (next, n, right) => {
+      const left = norm({ ...root, next });
+      return cont(left, n, right);
+    });
+  } else if (node.key === key) {
+    const left = norm({ ...root, items: lefts, next: node.value });
+    const right = norm({ ...root, items: rights });
+    const n = { key: node.key, rank: root.rank };
+    return cont(left, n, right);
+  }
+  return unzip(key, node.value, (next, n, value) => {
+    const left = norm({ ...root, items: lefts, next });
+    const items = shift<Pair<K>>(rights, { key: node.key, value });
+    const right = norm({ ...root, items });
+    return cont(left, n, right);
+  });
+}
+
+/**
  * Split the input tree into two balanced sub-trees.
  * @param key The key to split the tree on.
  * @param root The root node of the tree.
  * @returns A tuple of the left and right trees.
  */
-export function unzip<K, R extends number>(
+export function unzipBase<K>(
   key: K,
-  root?: Node<K, R>,
-): [Node<K, R> | undefined, Item<K, R> | undefined, Node<K, R> | undefined] {
+  root?: Node<K>,
+): [Node<K> | undefined, Item<K> | undefined, Node<K> | undefined] {
   if (root === undefined) {
     return [undefined, undefined, undefined];
   }
   const [lefts, node, rights] = split(
     root.items,
-    ([k]) => k >= key,
+    (item) => item.key >= key,
   );
   if (node === undefined) {
     const [next, n, right] = unzip(key, root.next);
-    const left = normalize({ ...root, next });
+    const left = norm({ ...root, next });
     return [left, n, right];
-  } else if (node[0] === key) {
-    const left = normalize({ ...root, items: lefts, next: node[1] });
-    const right = normalize({ ...root, items: rights });
-    const n = { key: node[0], rank: root.rank };
+  } else if (node.key === key) {
+    const left = norm({ ...root, items: lefts, next: node.value });
+    const right = norm({ ...root, items: rights });
+    const n = { key: node.key, rank: root.rank };
     return [left, n, right];
   } else {
-    const [next, n, inner] = unzip(key, node?.[1]);
-    const left = normalize({ ...root, items: lefts, next });
-    const newRights = shift<Pair<K, R>>(rights, [node![0], inner]);
-    const right = normalize({ ...root, items: newRights });
+    const [next, n, value] = unzip(key, node.value);
+    const left = norm({ ...root, items: lefts, next });
+    const items = shift<Pair<K>>(rights, { key: node.key, value });
+    const right = norm({ ...root, items });
     return [left, n, right];
   }
 }
 
-export function zip<K, R extends number>(
-  left?: Node<K, R>,
-  right?: Node<K, R>,
-): Node<K, R> | undefined {
+/**
+ * zip function that uses continuation-passing style to achieve tail recursion.
+ * @param left Left-hand tree.
+ * @param right Right-hand tree.
+ * @param cont Continuation function.
+ * @returns Joined tree.
+ */
+export function zip<K>(
+  left?: Node<K>,
+  right?: Node<K>,
+  cont: (value?: Node<K>) => Node<K> | undefined = (x) => x,
+): Node<K> | undefined {
   if (left === undefined) {
-    return right;
-  }
-  if (right === undefined) {
-    return left;
-  }
-  if (left.rank == right.rank) {
+    return cont(right);
+  } else if (right === undefined) {
+    return cont(left);
+  } else if (left.rank == right.rank) {
     const [rights, child] = unshift(right.items);
-    const inner = zip(left.next, child?.[1]);
-    const lefts = push<Pair<K, R>>(left.items, [child![0], inner]);
-    const items = join(lefts, rights);
-    return normalize({ ...right, items });
+    return zip(left.next, child?.value, (value) => {
+      const inner: Pair<K> = { key: child!.key, value };
+      const items = join(push(left.items, inner), rights);
+      return cont(norm({ ...right, items }));
+    });
   } else if (left.rank < right.rank) {
     const [rights, child] = unshift(right.items);
-    const inner = zip(left, child?.[1]);
-    const items = shift<Pair<K, R>>(rights, [child![0], inner]);
-    return normalize({ ...right, items });
+    return zip(left, child?.value, (value) => {
+      const items = shift<Pair<K>>(rights, { key: child!.key, value });
+      return cont(norm({ ...right, items }));
+    });
+  }
+  return zip(left.next, right, (next) => cont(norm({ ...left, next })));
+}
+
+/**
+ * Join two trees into a single tree.
+ * @param left The left-hand tree.
+ * @param right The right-hand tree.
+ * @returns A new tree with the two trees joined.
+ */
+export function zipBase<K>(
+  left?: Node<K>,
+  right?: Node<K>,
+): Node<K> | undefined {
+  if (left === undefined) {
+    return right;
+  } else if (right === undefined) {
+    return left;
+  } else if (left.rank == right.rank) {
+    const [rights, child] = unshift(right.items);
+    const value = zip(left.next, child?.value);
+    const inner: Pair<K> = { key: child!.key, value };
+    const items = join(push(left.items, inner), rights);
+    return norm({ ...right, items });
+  } else if (left.rank < right.rank) {
+    const [rights, child] = unshift(right.items);
+    const value = zip(left, child?.value);
+    const items = shift<Pair<K>>(rights, { key: child!.key, value });
+    return norm({ ...right, items });
   } else {
     const next = zip(left.next, right);
-    return normalize({ ...left, next });
+    return norm({ ...left, next });
   }
 }
 
-export function* iter<K, R extends number>(
-  root: Node<K, R> | undefined,
-): IterableIterator<Item<K, R>> {
+export function* iter<K>(
+  root: Node<K> | undefined,
+): IterableIterator<Item<K>> {
   if (root === undefined) {
     return;
   }
-  for (const [key, child] of root.items) {
-    yield* iter(child);
+  for (const { key, value } of root.items) {
+    yield* iter(value);
     yield { key, rank: root.rank };
   }
   yield* iter(root.next);
 }
 
-function* mermaidNodes<K, R extends number>(
-  node?: Node<K, R>,
+export function* mermaidNodes<K>(
+  node?: Node<K>,
   parentId = "",
 ): Generator<string> {
   if (node === undefined) {
     return;
   }
-  const keys = [...node.items].map(([key]) => key);
+  const keys = [...node.items].map(({ key }) => key);
   let nodeLabel = keys.join(",");
   if (node.size > 1) {
     nodeLabel += `\\n<small>rank:${node.rank}, size:${node.size}</small>`;
@@ -368,16 +559,19 @@ function* mermaidNodes<K, R extends number>(
   if (parentId !== "") {
     yield `${parentId} --> ${nodeId}`;
   }
-  const items: ReadonlyArray<Pair<K, R>> | undefined = node.items;
-  for (const [_key, child] of items) {
-    if (child !== undefined) {
-      yield* mermaidNodes(child, nodeId);
+  // if (node.pointer) {
+  //   return;
+  // }
+  const items: ReadonlyArray<Pair<K>> | undefined = node.items;
+  for (const { value } of items) {
+    if (value !== undefined) {
+      yield* mermaidNodes(value, nodeId);
     }
   }
   yield* mermaidNodes(node.next, nodeId);
 }
 
-export function mermaidDiagram<K, R extends number>(tree: GeometricTree<K, R>) {
+export function mermaidDiagram<K>(tree: GeometricTree<K>) {
   let str = "```mermaid\ngraph TD;";
   str += "\n  " + [...mermaidNodes(tree.root)].join("\n  ");
   str += "\n```\n";

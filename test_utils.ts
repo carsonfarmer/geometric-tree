@@ -44,9 +44,9 @@ export function shuffle<T>(array: ReadonlyArray<T>): Array<T> {
   return copy;
 }
 
-export function random(n = 10, p = 0.5): Array<Item<number, number>> {
+export function random(n = 10, p = 0.5): Array<Item<number>> {
   const factor = Math.floor(n / 10);
-  const pairs: Item<number, number>[] = [];
+  const pairs: Item<number>[] = [];
   const keys = new Set<number>();
   while (pairs.length < n) {
     const key = Math.floor(Math.random() * 100 * factor);
@@ -59,6 +59,6 @@ export function random(n = 10, p = 0.5): Array<Item<number, number>> {
   return pairs;
 }
 
-export function sorted(items: ReadonlyArray<Item<number, number>>) {
+export function sorted(items: ReadonlyArray<Item<number>>) {
   return items.toSorted(({ key: a }, { key: b }) => a - b);
 }

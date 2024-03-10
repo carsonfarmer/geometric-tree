@@ -7,32 +7,29 @@ import { Item, ZipTree } from "./api.ts";
 /**
  * Node is a node in the BinaryZipTree.
  */
-export interface Node<K, R extends number = number> extends Item<K, R> {
-  left: Node<K, R> | undefined;
-  right: Node<K, R> | undefined;
+export interface Node<K> extends Item<K> {
+  left: Node<K> | undefined;
+  right: Node<K> | undefined;
   size: number;
 }
 
 /**
  * A BinaryZipTree is an immutable, probabilistically balanced binary tree with a geometric distribution of ranks.
  */
-export class BinaryZipTree<
-  K,
-  R extends number = number,
-> implements ZipTree<K, R> {
+export class BinaryZipTree<K> implements ZipTree<K> {
   constructor(
     /**
      * The root node of the tree.
      */
-    public root?: Node<K, R>,
+    public root?: Node<K>,
   ) {}
 
   /**
    * Create an empty ZipTree.
    * @returns An empty ZipTree.
    */
-  static empty<K, R extends number = number>(): BinaryZipTree<K, R> {
-    return new BinaryZipTree<K, R>();
+  static empty<K = number>(): BinaryZipTree<K> {
+    return new BinaryZipTree<K>();
   }
 
   /**
@@ -40,10 +37,10 @@ export class BinaryZipTree<
    * @param item The item to insert into the tree.
    * @returns A ZipTree with a single item.
    */
-  static singleton<K, R extends number = number>(
-    item: Item<K, R>,
-  ): BinaryZipTree<K, R> {
-    return new BinaryZipTree<K, R>(singleton(item));
+  static singleton<K = number>(
+    item: Item<K>,
+  ): BinaryZipTree<K> {
+    return new BinaryZipTree<K>(singleton(item));
   }
 
   /**
@@ -51,11 +48,11 @@ export class BinaryZipTree<
    * @param array The array of items to insert into the tree. The array must be pre-sorted by key.
    * @returns A ZipTree with the items from the array.
    */
-  static from<K, R extends number = number>(
-    array: ReadonlyArray<Item<K, R>>,
-  ): BinaryZipTree<K, R> {
+  static from<K = number>(
+    array: ReadonlyArray<Item<K>>,
+  ): BinaryZipTree<K> {
     const root = from(array);
-    return new BinaryZipTree<K, R>(root);
+    return new BinaryZipTree<K>(root);
   }
 
   /**
@@ -79,7 +76,7 @@ export class BinaryZipTree<
    * @param key The key to search for.
    * @returns The item with the given key if it exists in the tree, otherwise undefined.
    */
-  search(key: K): Item<K, R> | undefined {
+  search(key: K): Item<K> | undefined {
     const node = search(key, this.root);
     return node ? { key: node.key, rank: node.rank } : undefined;
   }
@@ -89,9 +86,9 @@ export class BinaryZipTree<
    * @param item The item to insert.
    * @returns A new tree with the item inserted.
    */
-  insert(item: Item<K, R>) {
+  insert(item: Item<K>) {
     const root = insert(item, this.root);
-    return new BinaryZipTree<K, R>(root);
+    return new BinaryZipTree<K>(root);
   }
 
   /**
@@ -101,7 +98,7 @@ export class BinaryZipTree<
    */
   remove(key: K) {
     const root = remove(key, this.root);
-    return new BinaryZipTree<K, R>(root);
+    return new BinaryZipTree<K>(root);
   }
 
   /**
@@ -111,12 +108,12 @@ export class BinaryZipTree<
    */
   unzip(
     key: K,
-  ): [BinaryZipTree<K, R>, Item<K, R> | undefined, BinaryZipTree<K, R>] {
+  ): [BinaryZipTree<K>, Item<K> | undefined, BinaryZipTree<K>] {
     const [left, node, right] = unzip(key, this.root);
     return [
-      new BinaryZipTree<K, R>(left),
+      new BinaryZipTree<K>(left),
       node,
-      new BinaryZipTree<K, R>(right),
+      new BinaryZipTree<K>(right),
     ];
   }
 
@@ -126,9 +123,9 @@ export class BinaryZipTree<
    * @invariant All of the keys in the other tree must be greater than the keys in this tree.
    * @returns A new tree with the two trees joined.
    */
-  zip(other: BinaryZipTree<K, R>) {
+  zip(other: BinaryZipTree<K>) {
     const root = zip(this.root, other.root);
-    return new BinaryZipTree<K, R>(root);
+    return new BinaryZipTree<K>(root);
   }
 
   /**
@@ -138,12 +135,12 @@ export class BinaryZipTree<
    * All of the keys in the right tree must be greater than the keys in the left tree.
    * @returns A new tree with the two trees joined.
    */
-  static zip<K, R extends number>(
-    left: BinaryZipTree<K, R>,
-    right: BinaryZipTree<K, R>,
+  static zip<K>(
+    left: BinaryZipTree<K>,
+    right: BinaryZipTree<K>,
   ) {
     const root = zip(left?.root, right?.root);
-    return new BinaryZipTree<K, R>(root);
+    return new BinaryZipTree<K>(root);
   }
 
   /**
@@ -166,41 +163,39 @@ export class BinaryZipTree<
    * Return an array of the in-order items in the tree.
    * @returns An array of the in-order items in the tree.
    */
-  toArray(): Array<Item<K, R>> {
+  toArray(): Array<Item<K>> {
     return [...iter(this.root)];
   }
 }
 
-export function sized<K, R extends number>(node: Node<K, R>) {
+export function sized<K>(node: Node<K>) {
   const size = (node.left?.size ?? 0) + (node.right?.size ?? 0) + 1;
   return { ...node, size };
 }
 
-export function singleton<K, R extends number>(item: Item<K, R>): Node<K, R> {
+export function singleton<K>(item: Item<K>): Node<K> {
   return { ...item, left: undefined, right: undefined, size: 1 };
 }
 
-export function from<K, R extends number>(
-  array: ReadonlyArray<Item<K, R>>,
-): Node<K, R> | undefined {
+export function from<K>(
+  array: ReadonlyArray<Item<K>>,
+): Node<K> | undefined {
   if (array.length == 0) {
     return undefined;
-  } else if (array.length == 1) {
-    return singleton(array[0]);
   }
   const ranks = array.map(({ rank }) => rank);
-  const maxRank = Math.max(...ranks);
-  const splitIndex = array.findIndex(({ rank }) => rank === maxRank);
-  const left = from(array.slice(0, splitIndex));
-  const right = from(array.slice(splitIndex + 1));
+  const rank = Math.max(...ranks);
+  const split = array.findIndex((item) => item.rank === rank);
+  const left = from(array.slice(0, split));
+  const right = from(array.slice(split + 1));
   const size = (left?.size ?? 0) + (right?.size ?? 0) + 1;
-  return { ...array[splitIndex], left, right, size };
+  return { ...array[split], left, right, size };
 }
 
-export function search<K, R extends number>(
+export function search<K>(
   key: K,
-  root?: Node<K, R>,
-): Node<K, R> | undefined {
+  root?: Node<K>,
+): Node<K> | undefined {
   if (root === undefined) {
     return undefined;
   }
@@ -213,10 +208,10 @@ export function search<K, R extends number>(
   }
 }
 
-export function insert<K, R extends number>(
-  item: Item<K, R>,
-  root?: Node<K, R>,
-): Node<K, R> | undefined {
+export function insert<K>(
+  item: Item<K>,
+  root?: Node<K>,
+): Node<K> | undefined {
   if (root === undefined) {
     return singleton(item);
   }
@@ -230,10 +225,10 @@ export function insert<K, R extends number>(
  * @param root
  * @returns
  */
-function _defaultRemove<K, R extends number>(
+function _defaultRemove<K>(
   key: K,
-  root?: Node<K, R>,
-): Node<K, R> | undefined {
+  root?: Node<K>,
+): Node<K> | undefined {
   if (root === undefined) {
     return undefined;
   } else if (key == root.key) {
@@ -255,10 +250,10 @@ function _defaultRemove<K, R extends number>(
   }
 }
 
-export function remove<K, R extends number>(
+export function remove<K>(
   key: K,
-  root?: Node<K, R>,
-): Node<K, R> | undefined {
+  root?: Node<K>,
+): Node<K> | undefined {
   if (root === undefined) {
     return undefined;
   }
@@ -273,10 +268,10 @@ export function remove<K, R extends number>(
  * @param drop Whether to drop the node with the given key. Defaults to false for normal unzipping.
  * @returns A tuple of the left and right trees.
  */
-export function unzip<K, R extends number>(
+export function unzip<K>(
   key: K,
-  root?: Node<K, R>,
-): [Node<K, R> | undefined, Item<K, R> | undefined, Node<K, R> | undefined] {
+  root?: Node<K>,
+): [Node<K> | undefined, Item<K> | undefined, Node<K> | undefined] {
   if (root === undefined) {
     return [undefined, undefined, undefined];
   }
@@ -295,10 +290,10 @@ export function unzip<K, R extends number>(
   }
 }
 
-export function zip<K, R extends number>(
-  left?: Node<K, R>,
-  right?: Node<K, R>,
-): Node<K, R> | undefined {
+export function zip<K>(
+  left?: Node<K>,
+  right?: Node<K>,
+): Node<K> | undefined {
   if (left === undefined) {
     return right;
   }
@@ -314,17 +309,17 @@ export function zip<K, R extends number>(
   }
 }
 
-export function* iter<K, R extends number>(
-  root?: Node<K, R>,
-): IterableIterator<Item<K, R>> {
+export function* iter<K>(
+  root?: Node<K>,
+): IterableIterator<Item<K>> {
   for (const { key, rank } of inOrder(root)) {
     yield { key, rank };
   }
 }
 
-export function* inOrder<K, R extends number>(
-  root?: Node<K, R>,
-): IterableIterator<Node<K, R>> {
+export function* inOrder<K>(
+  root?: Node<K>,
+): IterableIterator<Node<K>> {
   if (root === undefined) {
     return;
   }
@@ -333,11 +328,11 @@ export function* inOrder<K, R extends number>(
   yield* inOrder(root.right);
 }
 
-export function* depthFirst<K, R extends number>(
-  root?: Node<K, R>,
+export function* depthFirst<K>(
+  root?: Node<K>,
   maxDepth = Infinity,
   currentDepth = 0,
-): IterableIterator<Node<K, R>> {
+): IterableIterator<Node<K>> {
   if (root === undefined || currentDepth > maxDepth) {
     return;
   }
@@ -346,14 +341,14 @@ export function* depthFirst<K, R extends number>(
   yield* depthFirst(root.right, maxDepth, currentDepth + 1);
 }
 
-export function* breadthFirst<K, R extends number>(
-  root?: Node<K, R>,
+export function* breadthFirst<K>(
+  root?: Node<K>,
   maxDepth = Infinity,
-): IterableIterator<Node<K, R>> {
+): IterableIterator<Node<K>> {
   if (root === undefined) {
     return;
   }
-  const queue: Array<[Node<K, R>, number]> = [[root, 0]];
+  const queue: Array<[Node<K>, number]> = [[root, 0]];
   while (queue.length > 0) {
     const [current, depth] = queue.shift()!;
     if (depth > maxDepth) {
@@ -369,8 +364,8 @@ export function* breadthFirst<K, R extends number>(
   }
 }
 
-function* mermaidNodes<K, R extends number>(
-  root: Node<K, R> | undefined,
+function* mermaidNodes<K>(
+  root: Node<K> | undefined,
 ): Generator<string> {
   if (root == null) {
     return;
@@ -395,8 +390,8 @@ function* mermaidNodes<K, R extends number>(
   }
 }
 
-export function mermaidDiagram<K, R extends number>(
-  tree: BinaryZipTree<K, R>,
+export function mermaidDiagram<K>(
+  tree: BinaryZipTree<K>,
 ) {
   let str = "```mermaid\nflowchart TB;";
   str += "\n  " + [...mermaidNodes(tree.root)].join("\n  ");
