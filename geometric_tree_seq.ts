@@ -1,10 +1,16 @@
 import { Item } from "./api.ts";
-import { from, iter, Node, singleton, zip } from "./zip_tree.ts";
+import {
+  from,
+  iter,
+  Node,
+  norm,
+  Pair,
+  singleton,
+  zip,
+} from "./geometric_tree.ts";
+import { shift, split as _split } from "./array_ops.ts";
 
-/**
- * A BinaryZipTree is an immutable, probabilistically balanced binary tree with a geometric distribution of ranks.
- */
-export class ZipSequence<K> {
+export class GeometricSequence<K> {
   constructor(
     /**
      * The root node of the tree.
@@ -16,8 +22,8 @@ export class ZipSequence<K> {
    * Create an empty ZipTree.
    * @returns An empty ZipTree.
    */
-  static empty<K>(): ZipSequence<K> {
-    return new ZipSequence<K>();
+  static empty<K>(): GeometricSequence<K> {
+    return new GeometricSequence<K>();
   }
 
   /**
@@ -27,8 +33,8 @@ export class ZipSequence<K> {
    */
   static singleton<K>(
     item: Item<K>,
-  ): ZipSequence<K> {
-    return new ZipSequence<K>(singleton(item));
+  ): GeometricSequence<K> {
+    return new GeometricSequence<K>(singleton(item));
   }
 
   /**
@@ -38,9 +44,9 @@ export class ZipSequence<K> {
    */
   static from<K>(
     array: ReadonlyArray<Item<K>>,
-  ): ZipSequence<K> {
+  ): GeometricSequence<K> {
     const root = from(array);
-    return new ZipSequence<K>(root);
+    return new GeometricSequence<K>(root);
   }
 
   /**
@@ -67,7 +73,7 @@ export class ZipSequence<K> {
    */
   insert(i: number, item: Item<K>) {
     const root = insert(i, item, this.root);
-    return new ZipSequence<K>(root);
+    return new GeometricSequence<K>(root);
   }
 
   /**
@@ -77,7 +83,7 @@ export class ZipSequence<K> {
    */
   remove(i: number) {
     const root = remove(i, this.root);
-    return new ZipSequence<K>(root);
+    return new GeometricSequence<K>(root);
   }
 
   /**
@@ -87,7 +93,7 @@ export class ZipSequence<K> {
    */
   first(n: number) {
     const root = first(n, this.root);
-    return new ZipSequence<K>(root);
+    return new GeometricSequence<K>(root);
   }
 
   /**
@@ -97,7 +103,7 @@ export class ZipSequence<K> {
    */
   last(n: number) {
     const root = last(n, this.root);
-    return new ZipSequence<K>(root);
+    return new GeometricSequence<K>(root);
   }
 
   /**
@@ -106,12 +112,7 @@ export class ZipSequence<K> {
    * @returns The element at the given index.
    */
   at(i: number): Item<K> | undefined {
-    const length = this.length();
-    if (i < 0) {
-      i = length + i;
-    }
-    const root = at(i, this.root);
-    return root !== undefined ? { key: root.key, rank: root.rank } : undefined;
+    return at(i, this.root);
   }
 
   /**
@@ -120,7 +121,7 @@ export class ZipSequence<K> {
    */
   push(item: Item<K>) {
     const root = push(item, this.root);
-    return new ZipSequence<K>(root);
+    return new GeometricSequence<K>(root);
   }
 
   /**
@@ -129,7 +130,7 @@ export class ZipSequence<K> {
    */
   unshift(item: Item<K>) {
     const root = unshift(item, this.root);
-    return new ZipSequence<K>(root);
+    return new GeometricSequence<K>(root);
   }
 
   /**
@@ -155,12 +156,15 @@ export class ZipSequence<K> {
     const offset = length - start;
     const front = last(offset, this.root);
     const root = first(end - start, front);
-    return new ZipSequence<K>(root);
+    return new GeometricSequence<K>(root);
   }
 
   split(i: number) {
     const [left, right] = split(i, this.root);
-    return [new ZipSequence<K>(left), new ZipSequence<K>(right)];
+    return [
+      new GeometricSequence<K>(left),
+      new GeometricSequence<K>(right),
+    ];
   }
 
   /**
@@ -168,7 +172,7 @@ export class ZipSequence<K> {
    * @returns A string representation of the sequence.
    */
   toString() {
-    return `ZipSequence(${this.root?.key}, ${this.root?.rank})`;
+    return `GeometricSequence(${this.root?.rank}, ${this.root?.size})`;
   }
 
   /**
@@ -188,46 +192,57 @@ export class ZipSequence<K> {
   }
 }
 
-export function first<K>(
-  n: number,
+export function unzip<K>(
+  offset: number,
   root?: Node<K>,
-): Node<K> | undefined {
-  if (n == 0 || root === undefined) {
-    return undefined;
-  } else if (n == root.size) {
-    return root;
+): [Node<K> | undefined, Item<K> | undefined, Node<K> | undefined] {
+  if (root === undefined) {
+    return [undefined, undefined, undefined];
   }
-  const leftSize = root.left?.size ?? 0;
-  if (n <= leftSize) {
-    return first(n, root.left);
+  let remainder = offset;
+  const [lefts, node, rights] = _split(
+    root.items,
+    ({ value }) => {
+      const size = (value?.size ?? 0) + 1;
+      const result = size >= remainder;
+      remainder -= size;
+      return result;
+    },
+  );
+  if (node === undefined) {
+    const [next, n, right] = unzip(remainder, root.next);
+    const left = norm({ ...root, next });
+    return [left, n, right];
+  } else if (remainder === 0) {
+    const left = norm({ ...root, items: lefts, next: node.value });
+    const right = norm({ ...root, items: rights });
+    const n = { key: node.key, rank: root.rank };
+    return [left, n, right];
   } else {
-    const length = n - leftSize - 1;
-    const right = first(length, root.right);
-    const rightSize = right?.size ?? 0;
-    const size = leftSize + 1 + rightSize;
-    return { ...root, right, size };
+    const size = node.value?.size ?? 0;
+    const [next, n, value] = unzip(size + remainder + 1, node.value);
+    const left = norm({ ...root, items: lefts, next });
+    const items = shift<Pair<K>>(rights, { key: node.key, value });
+    const right = norm({ ...root, items });
+    return [left, n, right];
   }
 }
 
-export function last<K>(
-  n: number,
+export function first<K>(
+  offset: number,
   root?: Node<K>,
 ): Node<K> | undefined {
-  if (n == 0 || root === undefined) {
-    return undefined;
-  } else if (n == root.size) {
-    return root;
-  }
-  const rightSize = root.right?.size ?? 0;
-  if (n <= rightSize) {
-    return last(n, root.right);
-  } else {
-    const length = n - rightSize - 1;
-    const left = last(length, root.left);
-    const leftSize = left?.size ?? 0;
-    const size = rightSize + 1 + leftSize;
-    return { ...root, left, size };
-  }
+  const [left, _node, _right] = unzip(offset + 1, root);
+  return left;
+}
+
+export function last<K>(
+  offset: number,
+  root?: Node<K>,
+): Node<K> | undefined {
+  const n = (root?.size ?? 0) - offset;
+  const [_left, _node, right] = unzip(n, root);
+  return right;
 }
 
 /**
@@ -240,17 +255,10 @@ export function split<K>(
   i: number,
   root?: Node<K>,
 ): [Node<K> | undefined, Node<K> | undefined] {
-  if (root === undefined) {
-    return [undefined, undefined];
-  }
-  return [first(i, root), last(root.size - i, root)];
+  return [first(i, root), last((root?.size ?? 0) - i, root)];
 }
 
 export function push<K>(x: Item<K>, root?: Node<K>) {
-  if (root == null) {
-    return singleton(x);
-  }
-  // return insert(x, root.size, root);
   return zip(root, singleton(x));
 }
 
@@ -258,10 +266,6 @@ export function push<K>(x: Item<K>, root?: Node<K>) {
  * Prepend a node to the start of the sequence represented by the input tree.
  */
 export function unshift<K>(x: Item<K>, root?: Node<K>) {
-  if (root == null) {
-    return singleton(x);
-  }
-  // return insert(x, 0, root);
   return zip(singleton(x), root);
 }
 
@@ -280,7 +284,10 @@ export function insert<K>(
       return undefined;
     }
   }
-  return zip(first(i, root), zip(singleton(x), last(root.size - i, root)));
+  return zip(
+    first(i, root),
+    unshift(x, last((root?.size ?? 0) - i, root)),
+  );
 }
 
 /**
@@ -290,10 +297,10 @@ export function remove<K>(
   i: number,
   root?: Node<K>,
 ) {
-  if (root === undefined) {
-    return undefined;
-  }
-  return zip(first(i, root), last(root.size - i - 1, root));
+  return zip(
+    first(i, root),
+    last((root?.size ?? 0) - i - 1, root),
+  );
 }
 
 /**
@@ -306,5 +313,9 @@ export function at<K>(
   if (root === undefined || (i > 0 && i > root.size)) {
     return undefined;
   }
-  return last(1, first(i + 1, root));
+  if (i < 0) {
+    i = root.size + i;
+  }
+  const [, node] = unzip(Math.min(i + 1, root.size), root);
+  return node;
 }

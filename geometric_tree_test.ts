@@ -177,7 +177,7 @@ Deno.test({
 
     // Note that this test isn't the same as the zip-tree variant.
     // Remove all the keys from the root node
-    for (const [key] of [...root.root!.items]) {
+    for (const { key } of [...root.root!.items]) {
       root = root.remove(key);
     }
     assert(!root.isEmpty());

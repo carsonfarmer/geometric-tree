@@ -1,7 +1,7 @@
 /**
  * Item is a key and rank pair.
  */
-export type Item<K, R extends number> = {
+export type Item<K> = {
   /**
    * The key of the item. The type is generic, but should be comparable.
    */
@@ -12,38 +12,38 @@ export type Item<K, R extends number> = {
    * can degrade to O(n²) in the worst case if ranks aren't geometrically
    * distributed.
    */
-  rank: R;
+  rank: number;
 };
 
 // TODO: How to implement this while retaining the return type of the implementation?
 export interface ZipTreeConstructor {
-  new <K, R extends number>(): ZipTree<K, R>;
+  new <K>(): ZipTree<K>;
   /**
    * Create an empty ZipTree.
    * @returns An empty ZipTree.
    */
-  empty<K, R extends number>(): ZipTree<K, R>;
+  empty<K>(): ZipTree<K>;
   /**
    * Create a ZipTree with a single item.
    * @param item The item to insert into the tree.
    * @returns A ZipTree with a single item.
    */
-  singleton<K, R extends number>(item: Item<K, R>): ZipTree<K, R>;
+  singleton<K>(item: Item<K>): ZipTree<K>;
 
   /**
    * Create a ZipTree from a sorted array of items.
    * @param array The array of items to insert into the tree. The array must be sorted by key.
    * @returns A ZipTree with the items from the array.
    */
-  from<K, R extends number>(
-    array: Array<Item<K, R>>,
-  ): ZipTree<K, R>;
+  from<K>(
+    array: Array<Item<K>>,
+  ): ZipTree<K>;
 }
 
 /**
  * A ZipTree is an immutable, probabilistically balanced tree with a geometric distribution of ranks.
  */
-export interface ZipTree<K, R extends number> {
+export interface ZipTree<K> {
   /**
    * Check if the tree is empty.
    * @returns Whether the tree is empty.
@@ -55,28 +55,28 @@ export interface ZipTree<K, R extends number> {
    * @param key The key to search for.
    * @returns The item with the given key if it exists in the tree, otherwise undefined.
    */
-  search(key: K): Item<K, R> | undefined;
+  search(key: K): Item<K> | undefined;
 
   /**
    * Insert an item into the tree.
    * @param item The item to insert.
    * @returns A new tree with the item inserted.
    */
-  insert(item: Item<K, R>): ZipTree<K, R>;
+  insert(item: Item<K>): ZipTree<K>;
 
   /**
    * Remove an item from the tree.
    * @param key The key of the item to remove.
    * @returns A new tree with the item removed.
    */
-  remove(key: K): ZipTree<K, R>;
+  remove(key: K): ZipTree<K>;
 
   /**
    * Split the input tree into two balanced sub-trees.
    * @param key The key to split the tree on.
    * @returns A tuple of the left and right trees.
    */
-  unzip(key: K): [ZipTree<K, R>, Item<K, R> | undefined, ZipTree<K, R>];
+  unzip(key: K): [ZipTree<K>, Item<K> | undefined, ZipTree<K>];
 
   /**
    * Join another tree into this one.
@@ -84,7 +84,7 @@ export interface ZipTree<K, R extends number> {
    * All of the keys in the other tree must be greater than the keys in this tree.
    * @returns A new tree with the two trees joined.
    */
-  zip(other: ZipTree<K, R>): ZipTree<K, R>;
+  zip(other: ZipTree<K>): ZipTree<K>;
 
   /**
    * Return a string representation of the tree.
@@ -96,11 +96,11 @@ export interface ZipTree<K, R extends number> {
    * Return an Iterator over the items in the tree.
    * @returns An Iterator over the items in the tree.
    */
-  [Symbol.iterator](): IterableIterator<Item<K, R>>;
+  [Symbol.iterator](): IterableIterator<Item<K>>;
 
   /**
    * Return an array of the in-order items in the tree.
    * @returns An array of the in-order items in the tree.
    */
-  toArray(): Array<Item<K, R>>;
+  toArray(): Array<Item<K>>;
 }
