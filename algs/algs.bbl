@@ -1,0 +1,53 @@
+\begin{thebibliography}{1}
+
+\bibitem{archibald2006number}
+Margaret Archibald, Arnold Knopfmacher, and Helmut Prodinger.
+\newblock The number of distinct values in a geometrically distributed sample.
+\newblock {\em European Journal of Combinatorics}, 27(7):1059--1081, 2006.
+\newblock Eurocomb '03 - Graphs and Combinatorial Structures.
+
+\bibitem{brown2011how}
+Daniel~G Brown.
+\newblock How i wasted too long finding a concentration inequality for sums of
+  geometric variables, 2011.
+
+\bibitem{gila2023zip}
+Ofek Gila, Michael~T Goodrich, and Robert~E Tarjan.
+\newblock Zip-zip trees: Making zip trees more balanced, biased, compact, or
+  persistent.
+\newblock In {\em Algorithms and Data Structures Symposium}, pages 474--492.
+  Springer, 2023.
+\newblock \url{https://arxiv.org/pdf/2307.07660.pdf}.
+
+\bibitem{golovin2010b}
+Daniel Golovin.
+\newblock The b-skip-list: A simpler uniquely represented alternative to
+  b-trees.
+\newblock {\em arXiv preprint arXiv:1005.0662}, 2010.
+\newblock \url{https://arxiv.org/pdf/1005.0662.pdf}.
+
+\bibitem{pugh1990skip}
+William Pugh.
+\newblock Skip lists: a probabilistic alternative to balanced trees.
+\newblock {\em Communications of the ACM}, 33(6):668--676, 1990.
+\newblock \url{https://dl.acm.org/doi/pdf/10.1145/78973.78977}.
+
+\bibitem{pugh1989incremental}
+William Pugh and Tim Teitelbaum.
+\newblock Incremental computation via function caching.
+\newblock In {\em Proceedings of the 16th ACM SIGPLAN-SIGACT symposium on
+  Principles of programming languages}, pages 315--328, 1989.
+\newblock \url{https://dl.acm.org/doi/pdf/10.1145/75277.75305}.
+
+\bibitem{szpankowski1990yet}
+Wojciech Szpankowski and Vernon Rego.
+\newblock Yet another application of a binomial recurrence order statistics.
+\newblock {\em Computing}, 43(4):401--410, 1990.
+
+\bibitem{tarjan2021zip}
+Robert~E Tarjan, Caleb Levy, and Stephen Timmel.
+\newblock Zip trees.
+\newblock {\em ACM Transactions on Algorithms (TALG)}, 17(4):1--12, 2021.
+\newblock \url{https://arxiv.org/pdf/1806.06726.pdf}.
+
+\end{thebibliography}

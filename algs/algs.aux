@@ -1,0 +1,79 @@
+\relax 
+\providecommand \oddpage@label [2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Preliminaries}{1}\protected@file@percent }
+\newlabel{sec:preliminaries}{{1}{1}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Zip trees}{1}\protected@file@percent }
+\newlabel{sec:zip-tree}{{2}{1}}
+\citation{gila2023zip}
+\@writefile{loa}{\contentsline {algocf}{\numberline {1}{\ignorespaces Recursive zip tree construction}}{2}\protected@file@percent }
+\newlabel{alg:zip-tree-recursive}{{1}{2}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Geometric trees}{2}\protected@file@percent }
+\newlabel{sec:geometric-tree}{{3}{2}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Zip tree with colliding linked lists of rank \leavevmode {\color  {orange}three}, \leavevmode {\color  {magenta}two}, \leavevmode {\color  {cyan}two}, and \leavevmode {\color  {pink}one}. Ranks are given as gray labels.}}{3}\protected@file@percent }
+\newlabel{fig:zip-tree-colliding}{{1}{3}}
+\citation{tarjan2021zip}
+\citation{tarjan2021zip}
+\@writefile{loa}{\contentsline {algocf}{\numberline {2}{\ignorespaces Recursive geometric tree construction}}{4}\protected@file@percent }
+\newlabel{alg:geometric-tree-recursive}{{2}{4}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Geometric tree version of the zip tree from fig. 1\hbox {}. Ranks are labeled on the right in gray.}}{4}\protected@file@percent }
+\newlabel{fig:geometric-tree}{{2}{4}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Mutations}{4}\protected@file@percent }
+\newlabel{sec:mutations}{{4}{4}}
+\citation{tarjan2021zip}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Mutating a zip tree via zipping/unzipping search path spines (after \cite  {tarjan2021zip}). When removing $\leavevmode {\color  {magenta}K}$, the topmost node of the path must be $\leavevmode {\color  {cyan}H}$ because it is the smallest value with the given rank (both $\leavevmode {\color  {cyan}H}$ and $\leavevmode {\color  {orange}H}$ have rank 2). The remaining nodes on the path ($\leavevmode {\color  {orange}M} \rightarrow \leavevmode {\color  {orange}L} \rightarrow \leavevmode {\color  {cyan}J}$) are interleaved by rank and value. }}{5}\protected@file@percent }
+\newlabel{fig:zip-tree-mutate}{{3}{5}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Zip and unzip}{5}\protected@file@percent }
+\@writefile{loa}{\contentsline {algocf}{\numberline {3}{\ignorespaces Purely functional zip}}{6}\protected@file@percent }
+\newlabel{alg:zip-tree-zip}{{3}{6}}
+\@writefile{loa}{\contentsline {algocf}{\numberline {4}{\ignorespaces Purely functional unzip}}{6}\protected@file@percent }
+\newlabel{alg:zip-tree-unzip}{{4}{6}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Extending zip and unzip}{6}\protected@file@percent }
+\@writefile{loa}{\contentsline {algocf}{\numberline {5}{\ignorespaces Zip function for geometric trees}}{7}\protected@file@percent }
+\newlabel{alg:zip-geometric}{{5}{7}}
+\citation{tarjan2021zip}
+\@writefile{loa}{\contentsline {algocf}{\numberline {6}{\ignorespaces Unzip function for geometric trees}}{8}\protected@file@percent }
+\newlabel{alg:unzip-geometric}{{6}{8}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Insert and delete}{8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Analysis of geometric trees}{8}\protected@file@percent }
+\citation{pugh1990skip}
+\citation{golovin2010b}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Zipping and unzipping the geometric tree from fig.\nobreakspace  {}2\hbox {} at $41$ requires two steps. Sub-trees $\text  {A}$ and $\text  {B}$ are labeled in gray, and the dotted lines represent joins/splits.}}{9}\protected@file@percent }
+\newlabel{fig:geometric-zipping}{{4}{9}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Ranks}{9}\protected@file@percent }
+\@writefile{loa}{\contentsline {algocf}{\numberline {7}{\ignorespaces Insert for geometric trees}}{10}\protected@file@percent }
+\newlabel{alg:insert-geometric}{{7}{10}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Height}{10}\protected@file@percent }
+\citation{golovin2010b}
+\citation{szpankowski1990yet}
+\@writefile{loa}{\contentsline {algocf}{\numberline {8}{\ignorespaces Delete for geometric trees}}{11}\protected@file@percent }
+\newlabel{alg:delete-geometric}{{8}{11}}
+\citation{archibald2006number}
+\citation{brown2011how}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Nodes}{12}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Search}{13}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Insert and delete}{13}\protected@file@percent }
+\citation{pugh1989incremental}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Extensions}{14}\protected@file@percent }
+\@writefile{loa}{\contentsline {algocf}{\numberline {9}{\ignorespaces Insert and delete functions based on (un)zip}}{14}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Sequences}{14}\protected@file@percent }
+\@writefile{loa}{\contentsline {algocf}{\numberline {10}{\ignorespaces Queries on sequences using geometric trees}}{15}\protected@file@percent }
+\newlabel{alg:sequence-queries}{{10}{15}}
+\@writefile{loa}{\contentsline {algocf}{\numberline {11}{\ignorespaces Basic operations on sequences using geometric trees}}{15}\protected@file@percent }
+\newlabel{alg:basic-sequence-ops}{{11}{15}}
+\@writefile{loa}{\contentsline {algocf}{\numberline {12}{\ignorespaces Further operations on sequences using geometric trees}}{16}\protected@file@percent }
+\newlabel{alg:sequence-ops}{{12}{16}}
+\@writefile{toc}{\contentsline {section}{\numberline {B}Tail recursion}{16}\protected@file@percent }
+\@writefile{loa}{\contentsline {algocf}{\numberline {13}{\ignorespaces Tail recursive zip function}}{17}\protected@file@percent }
+\newlabel{alg:zip-geometric-tail}{{13}{17}}
+\@writefile{loa}{\contentsline {algocf}{\numberline {14}{\ignorespaces Tail recursive unzip function}}{17}\protected@file@percent }
+\newlabel{alg:unzip-geometric-tail}{{14}{17}}
+\bibstyle{plain}
+\bibdata{algs}
+\bibcite{archibald2006number}{1}
+\bibcite{brown2011how}{2}
+\bibcite{gila2023zip}{3}
+\bibcite{golovin2010b}{4}
+\bibcite{pugh1990skip}{5}
+\bibcite{pugh1989incremental}{6}
+\bibcite{szpankowski1990yet}{7}
+\bibcite{tarjan2021zip}{8}

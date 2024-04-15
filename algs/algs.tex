@@ -1,0 +1,774 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage[ruled,linesnumbered,vlined]{algorithm2e}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage[edges]{forest}
+\usepackage{url}
+
+\usetikzlibrary {arrows,shapes,calc,positioning,matrix,backgrounds}
+
+\tikzset{state/.style={draw,circle},>=latex,every label/.style={text=gray,font=\small}}
+\tikzset{bplus/.style={rectangle split,rectangle split horizontal,draw,rectangle split ignore empty parts,text width=0.7cm,minimum size=0.7cm,align=center},}
+\forestset{child edge/.style={edge path'/.expanded={
+(!u.#1 south) to[out=south,in=north,looseness=0.75] (.child anchor)
+},semithick}}
+\forestset{next edge/.style={edge path'/.expanded={
+(!u.#1 east) to[out=east,in=north] (.child anchor)
+},semithick}}
+
+\SetKwFunction{insert}{insert}
+\SetKwFunction{delete}{delete}
+\SetKwFunction{unzip}{unzip}
+\SetKwFunction{zip}{zip}
+
+\let\oldnl\nl% Store \nl in \oldnl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}% Remove line number for one line
+
+\begin{document}
+
+\section{Preliminaries}\label{sec:preliminaries}
+
+This document describes the implementation of a purely functional probabilistically balanced search tree. In this initial section, we define some basic terminology and notation that will be used throughout the document.
+
+A tree structure $T$ is defined as data structure accessed beginning at the root node. Each node is either a leaf or an internal node. An internal node has one or more child nodes and is called the parent of its child nodes. All children of the same node are siblings. Formally, a tree $T$ is either empty (i.e., $null$), or a root and zero or more subtrees, where each subtree is a tree in its own right.
+
+Given a total order $\preceq$ over a universe $U$, a tree structure $T$ is defined as a \emph{search tree} with respect to $\preceq$ if every subtree of a node has keys less than any other subtree of the node to its right. The keys in a node are conceptually between subtrees and are greater than any keys in subtrees to its left and less than any keys in subtrees to its right. This structure ensures that each key within the tree is unique and that the paths from the root to the leaves maintain a consistent hierarchical ordering according to $\preceq$, thereby facilitating efficient search, insertion, and deletion operations.
+
+A \emph{balanced tree} is defined by the property that no leaf node is significantly further from the root node than any other leaf node. The formal definition and enforcement of this balance can vary across different types of balanced trees, each characterized by specific rules or algorithms to maintain the desired level of balance.
+
+In contrast to strictly balanced trees, a \emph{probabilistically} balanced tree relaxes the deterministic constraints on balance, instead ensuring that the tree remains balanced with a certain probability. This approach can offer advantages in terms of reduced maintenance cost for the balance property during insertions and deletions, at the expense of a non-guaranteed but highly probable balance.
+
+\section{Zip trees}\label{sec:zip-tree}
+
+A zip tree is a probabilistically balanced binary search tree in which each node is augmented with a numeric rank. The rank is a non-negative integer that is chosen randomly from a geometric distribution with parameter $p = 1/2$. The tree is structured such that the rank of a node is greater than the rank of its left child and greater than or equal to the rank of its right child. In other words, the tree is (max)-heap-ordered with respect to ranks, with ties broken in favor of smaller keys.
+
+We define a zip tree recursively as either an empty tree, or a non-empty tree such that it has a root $node = \left(key, rank, left, right\right)$ represented as a (named) tuple, with $key \in U$, $rank \in \mathbb{N}$ and two children $left$ and $right$ which are both valid trees. Additionally, each node must maintain the following balance invariants: for any non-empty tree $T$ with root $node$, we have $\forall node' \in node.left \mid node'.key < node.key$ and $\forall node' \in node.right \mid node'.key > node.key$, and each $node \in T$ has a $rank$ that satisfies $\forall node' \in node.left : node'.rank < node.rank$ and $\forall node' \in node.right \mid node'.rank \le node.rank$.
+
+Let $S = \{s_1, s_2, \ldots, s_n\}$ be a sorted set, where each element $s_i = \left(key, rank \right)$ has an associated $key$ and $rank$ as defined previously. The ordering of elements in $S$ is determined based on keys, such that if $i < j$ then $S_i.key \preceq S_j.key$, where $\preceq$ denotes the total order relation on the keys. Using the above recursive definition for a zip tree, we can define a simple function (see alg. \ref{alg:zip-tree-recursive}) that maps $S$ to a zip tree $T$.
+
+We define the maximum rank as $M_n = \max\{s.rank \mid s \in S\}$. Then, $x$ is the element in $S$ whose index is $i = \min\left\{i \in \mathbb{N} \mid S_i.rank = M_n\right\}$. We additionally extract $left = \{S_j \in S \mid j < i\}$ and $right = \{S_j \in S \mid j > i\}$ so that $left \cup x \cup right = S$. In this definition, the \emph{pivot} element $x$ is the smallest element in $S$ that has the maximal rank among all elements in $S$. This process is then recursively applied to both $left$ and $right$, which are used to form the left and right subtrees of $T$ respectively.
+
+\begin{algorithm}[ht]
+    \caption{Recursive zip tree construction}\label{alg:zip-tree-recursive}
+    \DontPrintSemicolon
+    \SetKwFunction{map}{map}
+    \SetKwProg{prog}{}{:}{}
+
+    \prog{\map{$S$}}{
+        \lIf{$S = \emptyset$}{
+            \Return $null$
+        }
+        $M_n \gets \max\left\{s.rank \mid s \in S\right\}$\;
+        $i \gets \min\left\{i \in \mathbb{N} \mid S_i.rank = M_n \right\}$\;
+        $left$ $\gets$ \map{$\{S_j \in S \mid j < i\}$}\;
+        $right$ $\gets$ \map{$\{S_j \in S \mid j > i\}$}\;
+        \Return $\left(key: S_i.key, rank: M_n, left, right\right)$
+    }
+\end{algorithm}
+
+Informally, the element $x$ is chosen such that it has higher rank than all elements in $left$ and equal or higher rank than all elements in $right$. Furthermore, $x$ itself is chosen so that its $key$ is greater than all keys in $left$ and less than all keys in $right$, maintaining the sorted property of the set, and maintaining the invariants required by our zip tree definition.
+
+Taking the zip tree from fig. \ref{fig:zip-tree-colliding}, we have the sorted set of $(key, rank)$ tuples $S = \left\{(2, 1), (3, 2), (5, 1), (7, 3), \ldots, (59, 1), (61, 2), (67, 3), (71, 2) \right\}$, which is split (in order) at the pivot elements $7, 3, 31, 13, 23, 17, 53, 41, 43, 67$, and $61$ to form the zip tree.
+
+\section{Geometric trees}\label{sec:geometric-tree}
+
+This recursive definition reveals an interesting property of zip trees: \emph{rank collisions}. By construction, rank collisions result from sequences of items with equal rank being arranged in a linked list of right children. We say a sequence $Q = q_0 \prec q_1 \prec \ldots \prec q_k$ of items is \emph{colliding} in a superset $S \supseteq Q$ if all items in $Q$ have the same rank, and there is no item $s \in S$ of greater rank with $q_0 \prec s \prec q_k$. We can see this more explicitly in fig. \ref{fig:zip-tree-colliding}, where the linked list $7 \rightarrow 31 \rightarrow 53 \rightarrow 67$ is formed by a colliding set of maximal rank items. In \cite{gila2023zip}, they refer to these colliding sets as \emph{r1-rank groups}, and show that the expected number of nodes in an r1-rank group is well defined and predictable, a property that we will exploit in the design of our geometric tree.
+
+\begin{figure}[!htb]
+    \centering
+    \begin{forest}
+        for tree={state,edge={->,semithick,rounded corners},l sep = 6mm,}
+        [7,fill=orange,label=3 [3,label=2 [2,label=1] [5,label=1]]
+            [31,fill=orange,label=3
+                    [13,fill=magenta,label=2 [11,label=1]
+                            [23,fill=magenta,label=2
+                                    [17,fill=pink,label=1 [,phantom]
+                                            [19,fill=pink,label=1]]
+                                    [29,fill=magenta,label=2]]]
+                    [53,fill=orange,label=3
+                            [41,fill=cyan,label=2 [37,label=1]
+                                    [43,fill=cyan,label=2 [,phantom] [47,label=1]]]
+                            [67,fill=orange,label=3 [61,label=2 [59,label=1] [,phantom]] [71,label=2]]
+                    ]
+            ]
+        ]
+    \end{forest}
+    \caption{Zip tree with colliding linked lists of rank \textcolor{orange}{three}, \textcolor{magenta}{two}, \textcolor{cyan}{two}, and \textcolor{pink}{one}. Ranks are given as gray labels.}\label{fig:zip-tree-colliding}
+\end{figure}
+
+Let $S$ be a set, let $T = (t_0, t_1, \ldots, t_{|T| - 1})$ be the items of maximal rank in $S$, and let $\mathfrak{S}$ be a data structure for representing sets. We define a \emph{geometric search tree} recursively as either an empty tree, or a non-empty tree such that it has a root $node = \left(rank, items, next\right)$ represented as a (named) tuple, with $rank \in \mathbb{N}$, and where $items$ is an instance of $\mathfrak{S}$ containing (named) tuples of type $\left(key,value\right)$, such that $key \in U$, and both $value$ and $next$ are valid subtrees.
+
+\begin{algorithm}[ht]
+    \caption{Recursive geometric tree construction}\label{alg:geometric-tree-recursive}
+    \DontPrintSemicolon
+    \SetKwFunction{map}{map}
+    \SetKwFunction{push}{push}
+    \SetKwProg{prog}{}{:}{}
+
+    \prog{\map{$\mathfrak{S},S$}}{
+        \lIf{$S = \emptyset$}{
+            \Return $null$
+        }
+        $M_n \gets \max\left\{s.rank \mid s \in S\right\}$\;
+        $I \gets \left\{i \in \mathbb{N} \mid S_i.rank = M_n \right\}$\;
+        $items \gets \mathfrak{S}(\emptyset)$\;
+        \For{$i \gets 0$ \KwTo $|I| - 1$}{
+            $(l, h) \gets \left((I_{i - 1} + 1) \lor 0, I_i\right)$\;
+            $key \gets S_h.key$\;
+            $value$ $\gets$ \map{$\{S_j \in S \mid l \leq j < h\}$}\;
+            $items$ $\gets$ \push{$items, (key, value)$}\;
+        }
+        $next$ $\gets$ \map{$\{S_j \in S \mid j > I_{|I| - 1}\}$}\;
+        \Return $(rank: M_n, items, next)$
+    }
+\end{algorithm}
+
+We construct the geometric search tree by generalizing alg. \ref{alg:zip-tree-recursive} from using a single pivot item at each step of the recursion, to using \emph{all} items of maximal rank as pivots in each step. As such we form a geometric search tree on $S$ with $\mathfrak{S}$, using an instance of $\mathfrak{S}$ containing the items in $T$ in ascending order together with their left subtrees to form the $\left(key,value\right)$ tuples in $items$, where the left subtree ($value$) of item $t_i$ ($key$) is the geometric tree on $\{s \in S \mid t_{i - 1} \prec s \prec t_i\}$ using $\mathfrak{S}$. We additionally reference the $next$ right subtree (which may be $null$) as the geometric tree on $\{s \in S \mid t_{|T| - 1} \prec s\}$ using $\mathfrak{S}$. See alg. \ref{alg:geometric-tree-recursive} (which is a generalization of alg. \ref{alg:zip-tree-recursive}) for an implementation of this recursive mapping function, which takes as input a sorted set $S$ and can be curried over $\mathfrak{S}$.
+
+\begin{figure}[!htb]
+    \begin{forest}for tree={state,bplus,edge={->,semithick},l sep=1cm,}
+        [{\nodepart{one} 7 \nodepart{two} 31 \nodepart{three} 53 \nodepart{four} 67}, fill=orange
+        [3, child edge=one [2] [5]]
+        [{\nodepart{one} 13 \nodepart{two} 23 \nodepart{three} 29}, child edge=two,fill=magenta
+        [11, child edge=one]
+        [{\nodepart{one} 17 \nodepart{two} 19}, child edge=two,fill=pink]
+        ]
+        [{\nodepart{one} 41 \nodepart{two} 43}, child edge=three,fill=cyan
+        [37, child edge=one] [47, child edge=two]
+        ]
+        [61, child edge=four [59]]
+        [71, next edge=four]
+        ]
+        \begin{scope}
+            % Extend the bounding box to the right to make room for the labels
+            \path [use as bounding box] (current bounding box.south west) rectangle ([xshift=0.5cm]current bounding box.north east);
+        \end{scope}
+        \begin{scope}[overlay]
+            \node[anchor=west,color=gray,font=\small] at ([anchor=east,yshift=1.7cm]current bounding box.east) {3};
+            \node[anchor=west,color=gray,font=\small] at ([anchor=east]current bounding box.east) {2};
+            \node[anchor=west,color=gray,font=\small] at ([anchor=east,yshift=-1.7cm]current bounding box.east) {1};
+        \end{scope}
+    \end{forest}
+    \caption{Geometric tree version of the zip tree from fig. \ref{fig:zip-tree-colliding}. Ranks are labeled on the right in gray.}\label{fig:geometric-tree}
+\end{figure}
+
+Fig. \ref{fig:geometric-tree} shows the geometric tree that is formed using the same set of values used to produce the zip tree in fig. \ref{fig:zip-tree-colliding}. Note that colliding rank groups in the zip tree are now represented as sets of $items$ in the geometric tree, with the left subtrees of the items forming the child pointers, and the $next$ pointer identified via the rightmost pointer. The ranks are labeled on the right in gray, and the nodes are colored in the same way as the colliding rank groups in fig. \ref{fig:zip-tree-colliding}.
+
+\section{Mutations}\label{sec:mutations}
+
+Zip trees partly derive their name from the fact that they use a pair of operations called ``zipping'' and ``unzipping'' (rather than tree rotations) to mutate their structure. Zipping involves combining the right spine of a left subtree and the left spine of a right subtree into a single path, by merging them from top to bottom in non-increasing rank order, breaking ties in favor of the smaller key (see fig. \ref{fig:zip-tree-mutate}). Unzipping is essentially the opposite operation, where a path is split into two spines, one for the left subtree and one for the right subtree.
+
+\begin{figure}[!htb]
+    \centering
+    \begin{minipage}[t]{0.25\textwidth}
+        \begin{forest}
+            for tree={state,edge={->,semithick,rounded corners},l sep=6mm,baseline,anchor=north,},
+            [F,label=4 [D,label=2]
+            [S,label=4
+            [H,label=2,fill=cyan [G,label=0] [M,label=2,fill=orange [L,fill=orange,label=1 [J,fill=cyan,label=0] [,phantom]] [,phantom]]]
+            [X,label=2]]]
+        \end{forest}
+    \end{minipage}
+    \begin{minipage}[t]{0.5\textwidth}
+        \begin{center}
+            \begin{forest}
+                for tree={state,edge={->,semithick,rounded corners},l sep=6mm,baseline,anchor=north,},
+                [F,label=4 [D,label=2] [S,label=4 [K,label=3,fill=magenta [H,label=2,fill=cyan [G,label=0] [J,fill=cyan,label=0]] [M,label=2,fill=orange [L,fill=orange,label=1] [,phantom]]] [X,label=2]]]
+                \draw[->] (-4.5,-1) -- (-2.5,-1) node[midway,above] {\large insert};
+                \draw[<-] (-4.5,-5) -- (-2.5,-5) node[midway,above] {\large delete};
+            \end{forest}
+        \end{center}
+    \end{minipage}
+    \caption{Mutating a zip tree via zipping/unzipping search path spines (after \cite{tarjan2021zip}). When removing $\textcolor{magenta}{K}$, the topmost node of the path must be $\textcolor{cyan}{H}$ because it is the smallest value with the given rank (both $\textcolor{cyan}{H}$ and $\textcolor{orange}{H}$ have rank 2). The remaining nodes on the path ($\textcolor{orange}{M} \rightarrow \textcolor{orange}{L} \rightarrow \textcolor{cyan}{J}$) are interleaved by rank and value.
+    }\label{fig:zip-tree-mutate}
+\end{figure}
+
+To insert a new node $x$ into a zip tree, we start by searching for $x$ in the tree until reaching the node $y$ that $x$ will replace, namely the node $y$ such that $y.rank \leq x.rank$, with strict inequality if $y.key < x.key$. From $y$, we follow the rest of the search path for $x$, unzipping it by splitting it such that the left side contains nodes with key less than $x.key$ and the right side contains nodes with with key greater than $x.key$. We then join the left and right sides as children of $x$ to form a single sub-tree rooted at $x$. Walking back up the search path, we update any pointers to maintain our purely functional design.
+
+Deletion is essentially the inverse of insertion. To delete a node $x$, we again do a search to find the node $x$ where $x.key = key$. From $x$, we simply \zip the left and right children to form a single path merging them, dropping $x$ in the process.
+
+% Insertion and deletion each require a search plus an \unzip or a \zip. The time for an \unzip or \zip is proportional to the number of nodes on the unzipped path or the two zipped paths, respectively.
+
+\subsection{Zip and unzip}
+
+Given we are interested in purely functional variants of our data structures, we redefine the algorithms provided in \cite{tarjan2021zip} to be purely functional. We start with the \zip function in alg.~\ref{alg:zip-tree-zip}, which is a simple recursive function that is nearly identical to its original recursive design. We simply replace the in-place updates with new nodes that are created and returned. The \zip function takes two nodes, $left$ and $right$, and returns a new node that is the result of merging the two nodes. The only new notation is the use of the $(\ldots)$ ``spread'' operator, which is used here to denote expanding and extracting the fields of a named tuple.
+
+\begin{algorithm}[!htb]
+    \caption{Purely functional zip}\label{alg:zip-tree-zip}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+
+    \prog{\zip{$left, right$}}{
+        \lIf{$left = null$}{
+            \Return $right$
+        }
+        \lIf{$right = null$}{
+            \Return $left$
+        }
+        \If{$left.rank < right.rank$}{
+            $left$ $\gets$ \zip{$left, right.left$}\;
+            \Return $\left(\dots right, left\right)$
+        }
+        \Else{
+            $next$ $\gets$ \zip{$left.next, right$}\;
+            \Return $\left(\dots left, next\right)$\;
+        }
+    }
+\end{algorithm}
+
+For completness, we also provide a purely functional \unzip function in alg.~\ref{alg:zip-tree-unzip}. The \unzip function is a recursive function that takes a key and a root node and returns a triple that contains the $left$ and $right$ subtrees, along with the target $node$.
+
+\begin{algorithm}[!htb]
+    \caption{Purely functional unzip}\label{alg:zip-tree-unzip}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+
+    \prog{\unzip{$key, root$}}{
+        \lIf{$root = null$}{
+            \Return $[null, null, null]$
+        }
+        \If{$root.key = key$}{
+            $rank \gets root.rank$\;
+            \Return $[root.left, \left(key, rank\right), root.right]$
+        }
+        \ElseIf{$root.key < key$}{
+            $[next, node, right]$ $\gets$ \unzip{$key, root.right$}\;
+            $left \gets \left(\dots root, right: next\right)$\;
+            \Return $[left, node, right]$
+        }
+        \Else{
+            $[left, node, prev] \gets$ \unzip{$key, root.left$}\;
+            $right \gets \left(\dots root, left: prev\right)$\;
+            \Return $[left, node, right]$
+        }
+    }
+\end{algorithm}
+
+\subsection{Extending zip and unzip}
+
+Like with zip trees, insertion and deletion in a geometric tree are done via zipping and unzipping. In order to leverage the geometric tree structure, we need to extend the \zip and \unzip functions to handle the additional keys and children that are present in the geometric tree. The \zip function is shown in alg. \ref{alg:zip-geometric}, and the \unzip function is shown in alg. \ref{alg:unzip-geometric}.
+
+\begin{algorithm}[ht]
+    \caption{Zip function for geometric trees}\label{alg:zip-geometric}
+    \DontPrintSemicolon
+    \SetKwFunction{unshift}{unshift}
+    \SetKwFunction{shift}{shift}
+    \SetKwFunction{push}{push}
+    \SetKwFunction{pop}{pop}
+    \SetKwFunction{join}{join}
+    \SetKwFunction{norm}{norm}
+    \SetKwFunction{split}{split}
+    \SetKwFunction{length}{length}
+    \SetKwProg{prog}{}{:}{}
+
+    \prog{\zip{$left, right$}}{
+        \lIf{$left = null$}{
+            \Return $right$
+        }
+        \lIf{$right = null$}{
+            \Return $left$
+        }
+        \If{$left.rank = right.rank$}{
+            $[rights, child]$ $\gets$ \shift{$right.items$}\;
+            $value$ $\gets$ \zip{$left.next, child.value$}\;
+            $inner \gets \left(key: child.key, value\right)$\;
+            $items$ $\gets$ \join{\push{$left.items, inner$}$, rights$}\;
+            \Return \norm{$\left(\dots right, items\right)$}
+        }
+        \ElseIf{$left.rank < right.rank$}{
+            $[rights, child]$ $\gets$ \shift{$right.items$}\;
+            $value$ $\gets$ \zip{$left, child.value$}\;
+            $items$ $\gets$ \unshift{$rights, \left(key: child.key, value\right)$}\;
+            \Return \norm{$\left(\dots right, items \right)$}
+        }
+        \Else{
+            $next$ $\gets$ \zip{$left.next, right$}\;
+            \Return \norm{$\left(\dots left, next \right)$}
+        }
+    }
+\end{algorithm}
+
+The \shift, \unshift, \pop, and \push functions are the usual functional versions for operations on a deque (note that $items$ can be treated as a catenable deque), and \join is used to efficiently catenate two $items$ sets. Similarly, \split is used to efficiently split the $items$ set at the smallest item where $item.key \ge key$. The \norm function simply replaces any node that has an empty $items$ set with its own $next$ pointer (which may also be $null$). This ensures that the tree invariants are maintained and we do not end up with ``dangling'' nodes:
+
+$$
+    \textsf{norm}(node) =
+    \begin{cases}
+        node.next & \text{if } node.items = \emptyset \\
+        node      & \text{otherwise}                  \\
+    \end{cases}
+$$
+
+As is clear from alg. \ref{alg:zip-geometric}, the zipping process for geometric trees is almost identical to zipping in the binary case (with some modifications to handle the additional keys/children). The main difference is that we now have to handle the case where the ranks of the two nodes are equal (lines 4-9). In this case, we take the leftmost item from the right node and the rightmost (i.e., $next$) item from the left node, and zip/merge them into a single inner node. We then join this inner node with rest of the $items$ from the left and right nodes, and return the result. This is done in a way that ensures that the $items$ are interleaved by rank and value, and that the resulting $items$ remains sorted.
+
+\begin{algorithm}[!htb]
+    \caption{Unzip function for geometric trees}\label{alg:unzip-geometric}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+
+    \prog{\unzip{$key, root$}}{
+        \lIf{$root = null$}{
+            \Return $[null, null, null]$
+        }
+        $[lefts, node, rights]$ $\gets$ \split{$root.items, key$}\;
+        \If{$node$}{
+            \If{$node.key = key$}{
+                $left$ $\gets$ \norm{$\left(\dots root, items: lefts, next: node.value\right)$}\;
+                $right$ $\gets$ \norm{$\left(\dots root, items: rights\right)$}\;
+                $item \gets \left(key: node.key, rank: root.rank\right)$\;
+                \Return $[left, item, right]$
+            }
+            $[next, item, value]$ $\gets$ \unzip{$key, node.value$}\;
+            $left$ $\gets$ \norm{$\left(\dots root, items: lefts, next\right)$}\;
+            $items$ $\gets$ \unshift{$rights, \left(key: node.key, value\right)$}\;
+            $right$ $\gets$ \norm{$\left(\ldots root, items\right)$}\;
+            \Return $[left, item, right]$
+        }
+        $[next, item, right]$ $\gets$ \unzip{$key, root.next$}\;
+        $left$ $\gets$ \norm{$\left(\dots root, next\right)$}\;
+        \Return $[left, item, right]$
+    }
+\end{algorithm}
+
+Similarly, alg. \ref{alg:unzip-geometric} demonstrates that unzipping in a geometric tree is equivalent to unzipping in the binary case (e.g., the case where the key is found in the items set of the root node (lines 8-12) is effectively unchanged). The main differences here are that 1) if the key is not found in the $items$ set, we have to recursively search for it in the $next$ subtree (lines 4-7), and 2) we no longer have two separate $left$ and $right$ subtrees, but rather a single $items$ set that we need to split (lines 13-18).
+
+\subsection{Insert and delete}
+
+As with zip trees, an insertion or deletion in a geometric tree requires a search plus an \unzip and/or a \zip. Fig.~\ref{fig:geometric-zipping} provides a visual representation of the \zip/\unzip process which joins/splits (gray dotted line) the two sub-trees rooted at $\text{A}$ and $\text{B}$ in 2 steps.
+
+\begin{figure}[!htb]
+    \centering
+    \begin{forest}for tree={state,bplus,edge={->,semithick},l sep=1cm,},where level=0{%
+        s sep=2em
+        }{}
+        [, phantom [
+        {\nodepart{one} 7 \nodepart{two} 31}, fill=orange, name=31, label=A,
+        [3, child edge=one [2] [5]]
+        [{\nodepart{one} 13 \nodepart{two} 23 \nodepart{three} 29}, child edge=two, fill=magenta
+        [11, child edge=one]
+        [{\nodepart{one} 17 \nodepart{two} 19}, child edge=two, fill=pink]
+        ]
+        [41, next edge=two, fill=cyan, name=41 [37]]
+        ]
+        [
+        {\nodepart{one} 53 \nodepart{two} 67}, fill=orange, name=53, label=B,
+        [43, child edge=one, fill=cyan, name=43 [47]]
+        [61, child edge=two [59]]
+        [71, next edge=two]
+        ]
+        ]
+        \draw[<->, dotted, thick, gray] (31.east) to (53.west);
+        \draw[<->, dotted, thick, gray] (41.east) to (43.west);
+    \end{forest}
+    \caption{Zipping and unzipping the geometric tree from fig.~\ref{fig:geometric-tree} at $41$ requires two steps. Sub-trees $\text{A}$ and $\text{B}$ are labeled in gray, and the dotted lines represent joins/splits.}\label{fig:geometric-zipping}
+\end{figure}
+
+Alg.~\ref{alg:insert-geometric} provides an implementation of \insert for geometric trees which \emph{implicitly} uses search and unzipping to mutate the tree structure. This is a relatively direct ``port'' of the original zip tree \insert function from \cite{tarjan2021zip}.
+
+\begin{algorithm}[!htb]
+    \caption{Insert for geometric trees}\label{alg:insert-geometric}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+    \SetKwFunction{last}{last}
+
+    \prog{\insert{$item, root$}}{
+        \lIf{$root = null$}{
+            \Return $item$
+        }
+        $[lefts, node, rights]$ $\gets$ \split{$root.items, key$}\;
+        \If{$node \neq null$}{
+            $left$ $\gets$ \insert{$item, node.value$}\;
+            \If{$left.rank < root.rank$}{
+                $inner \gets \left(key: node.key, value: left\right)$\;
+                $items$ $\gets$ \join{\push{$lefts, inner$}$, rights$}\;
+                \Return \norm{$\left(\dots root, items\right)$}\;
+            }
+            \ElseIf{$left.rank = root.rank$}{
+                $inner \gets \left(key: node.key, value: left.next\right)$\;
+                $items$ $\gets$ \join{\push{\join{$lefts, left.items$}, $inner$}, $rights$}\;
+                \Return \norm{$\left(\dots root, items\right)$}\;
+            }
+            \Else{
+                $r$ $\gets$ \unshift{$rights, \left(key: node.key, value: left.next\right)$}\;
+                $next$ $\gets$ \norm{$\left(\dots root, items: r\right)$}\;
+                $last$ $\gets$ \last{$left.items$}\;
+                $value$ $\gets$ \norm{$\left(\dots root, items: lefts, next: last.value\right)$}\;
+                $items$ $\gets$ \push{\pop{$left.items$}, $\left(key: last.key, value\right)$}\;
+                \Return \norm{$\left(\dots left, items, next\right)$}\;
+            }
+        }
+        \Else{
+            $right$ $\gets$ \insert{$item, root.next$}\;
+            \If{$right.rank < root.rank$}{
+                \Return \norm{$\left(\dots root, items: lefts, next: right\right)$}\;
+            }
+            \ElseIf{$right.rank = root.rank$}{
+                $items$ $\gets$ \join{$lefts, right.items$}\;
+                \Return \norm{$\left(\dots root, items, next: right.next\right)$}\;
+            }
+            \Else{
+                $last$ $\gets$ \last{$right.items$}\;
+                $value$ $\gets$ \norm{$\left(\dots root, items: lefts, next: last.value\right)$}\;
+                $items$ $\gets$ \push{\pop{$right.items$}, $\left(key: last.key, value\right)$}\;
+                \Return \norm{$\left(\dots right, items\right)$}\;
+
+            }
+        }
+    }
+\end{algorithm}
+
+The \delete function is significantly simpler than the \insert function, due in part to the fact that we are able to leverage the \zip function from alg.~\ref{alg:zip-geometric} directly, whereas \insert requires a more complex set of operations to \emph{implicitly} unzip and manage the splits on the way ``back up''.
+
+\begin{algorithm}[!htb]
+    \caption{Delete for geometric trees}\label{alg:delete-geometric}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+
+    \prog{\delete{$key, root$}}{
+        \lIf{$root = null$}{
+            \Return $null$
+        }
+        $[lefts, node, rights]$ $\gets$ \split{$root.items, key$}\;
+        \If{$node \neq null$}{
+            \If{$node.key = key$}{
+                $left$ $\gets$ \norm{$\left(\dots root, items: lefts, next: node.value\right)$}\;
+                $right$ $\gets$ \norm{$\left(\dots root, items: rights\right)$}\;
+                \Return \zip{$left, right$}
+            }
+            $value$ $\gets$ \delete{$key, node.value$}\;
+            $inner \gets \left(key: node.key, value\right)$\;
+            $items$ $\gets$ \join{\push{$lefts, inner$}$, rights$}\;
+            \Return \norm{$\left(\dots root, items\right)$}\;
+        }
+        \Else{
+            $next$ $\gets$ \delete{$key, root.next$}\;
+            \Return \norm{$\left(\dots root, next\right)$}\;
+        }
+    }
+\end{algorithm}
+
+\section{Analysis of geometric trees}
+
+In this section, we analyze the geometric tree data structure. Here we are interested in its expected structure and performance under \zip- and \unzip- based mutations. To analyze the performance of the geometric tree, we need to bound its depth (i.e., the maximum rank), understand the distribution on node item set size, and understand how the node item set size distribution impacts the time to perform mutating operations on the trees.
+
+\subsection{Ranks}
+
+As in previous sections, let $S = \{s_1, s_2, \ldots, s_n\}$ be a sorted set, where each element $s_i = \left(key, rank \right)$ has an associated $key$ and $rank$. The $rank$ is a random variable drawn from a (truncated) geometric distribution with parameter $p \in \left(0, 1\right)$, truncated at some maximum rank $\beta$. Here we define the geometric distribution $\mathcal{G}(p)$ to be the discrete probability distribution of the number $X$ of biased coin flips (up to $\beta - 1$) required to obtain the first success (i.e., ``heads''). As in \cite{pugh1990skip}, if all $\beta - 1$ coin flips turn up ``tails,'' then the rank is set to $\beta$. The distribution over ranks is thus parametrized by the probability of tails $q = 1 - p$ and a bound $\beta$ on the maximum allowable level. The probability of a given rank is thus \cite{golovin2010b}:
+
+% Bernoulli trials needed to get one success, supported on the set $\mathbb{N}_+$, with success probability $p$. The probability mass function of the geometric distribution is given by $\Pr(X = k) = (1 - p)^{k-1}p$ for $k \in \mathbb{N}_+$.
+
+$$
+    \Pr(X = k) =
+    \begin{cases}
+        pq^{k-1}    & \text{if } 1 \leq k < \beta               \\
+        q^{\beta-1} & \text{if } k = \beta                      \\
+        0           & \text{if } k \leq 1 \text{ or } k > \beta
+    \end{cases}
+$$
+
+For large $\beta$, we can ignore the effect of truncation, and we get the usual expected value $\text{E}[X] = 1/p = 1/(1 - q)$. For smaller $\beta$, given that the probability for not getting a success in the first $k-1$ trials is $q^{k-1}$, and the fact that we ``stop'' our biased coin flips after $\beta$ trials, we reduce the expected number of trials by $1/(1-q)$ with probability $q^{\beta-1}$. This leads to the (truncated) expected value $\text{E}[X] = (1 - q^{\beta-1})/(1 - q)$.
+
+\subsection{Height}
+
+A geometric tree $T$ is parameterized by a tuning parameter $\gamma \in \{n \in \mathbb{N}_+ \mid n \ge 2\}$, which is used to control the expected height/depth of $T$, and the expected $items$ set size (i.e., number of children) of each node $g \in T$. Let the target capacity $N$ be some anticipated maximum number of keys in $T$. Fix a parameter $\gamma$, and let $q = 1/\gamma$, and $\beta = \lceil\log_\gamma N\rceil + 2$. Then, $g.rank$ is a (truncated) geometric random variable with parameter $p = 1 - q = 1 - 1/\gamma$, truncated at $\beta$.
+
+The root rank, $M_n = \max\{g.rank \mid g \in T\}$ is the maximum of $n$ (independent) samples of the (truncated) geometric distribution. By construction, this is at most $\beta = \lceil\log_\gamma N\rceil + 2$. For $n \ll N$, we can bound $M_n$ as the maximum rank of any $g \in T$ via the union bound.
+% Recall that for a given node $g$ in a geometric tree $T$ with parameter $\gamma$ (where $q = 1/\gamma$), the expected $g.rank$ is $(1 - q^{\beta-1})/(1 - q)$ (with truncation), and 
+Note that for given $k \le \beta$ the probability that the rank of a node $g$ is at least $k$ is at most $q^{k-1}$ (i.e., $\Pr[g.rank \ge k] \le q^{k-1}$). This implies that the probability that there exists some $g$ such that $g.rank \ge k$ is $\Pr[\exists g, g.rank \ge k] \le n q^{k-1}$, and so for some positive constant $c$, $\Pr[M_n \ge (c + 1) \log_\gamma n] \le n^{-c}$ \cite{golovin2010b}.
+
+Even for very large $\beta \rightarrow \infty$, the tail probability contribution is relatively small, and can be estimated via the simplification of the geometric series for values of $k > \lceil\log_\gamma n\rceil$:
+$$
+    \sum_{k=\lceil\log_\gamma n\rceil + 1}^\infty n p^{k-1} = n p^{\lceil\log_\gamma n\rceil} \leq n p^{\log_\gamma n} = \frac{1}{1 - p} = \frac{1}{q}
+$$
+
+\noindent which is $\gamma$, and implies that even without truncation, the expected max rank $\text{E}[M_n]$ is $\lceil\log_\gamma n\rceil$, and is at most $\lceil\log_\gamma n\rceil + 1 / q$ (i.e., $\log_\gamma n + \mathcal{O}(1)$), with high probability. The same expectation for $M_n$ is given by \cite[eq. (2.6) and (2.12)]{szpankowski1990yet} (among others), indicating that the expected value of $M_n$ is
+
+$$
+    \text{E}[M_n] = - \sum_{k = 1}^n (-1)^k \binom{n}{k}\frac{1}{1 - q^k} \text{,}
+$$
+
+\noindent which is asymptotically equal to $\log_\gamma n + \mathcal{O}(1)$.
+
+By construction, the height of a geometric tree $\text{H}(T)$ is less than or equal to its maximum rank $M_n$. Like zip trees, geometric trees ``compress'' their depth where ranks are missing or skipped. While we don't bother with tight bounds on this compressed height, \cite{archibald2006number} provides an expectation on the number of distinct ranks $\text{E}[d_n]$ in a geometrically distributed random sample, which could provide tighter bounds (though as they point out, the expected number of missing values in the range 1 up to $\text{E}[M_n]$ is asymptotically given by $\text{E}[M_n] - \text{E}[d_n] \approx 1 - \log_\gamma (\gamma - 1) $, which makes little difference for $\gamma > 2$).
+
+In any case, $\text{E}[\text{H}(T)] \le \text{E}[M_n] \le \lceil\log_\gamma n\rceil + \gamma$ with high probability, and at most $\beta$ with certainty when truncation is applied. As such, the expected height of a geometric tree is roughly $\mathcal{O}(\log n)$.
+
+\subsection{Nodes}
+
+Given the geometric distribution of (independent) ranks over input values $s \in S$, the expected number of values with $rank = k$ is about $\gamma$ times the expected number of values at rank $k + 1$ (i.e., $\Pr[s.rank > k | s.rank \geq k] = q$). Let $T$ be a geometric tree. Recall that each node $g \in T$ also has a $rank$, derived from its $items$. Based on our top-down recursive definition, we can think of nodes within $T$ as disjoint subsets formed by splitting the (sorted) items of rank $k$ at values of rank $k + 1$. Furthermore, the number of nodes with a given rank $k$ is a direct function of the number of nodes with rank $k + 1$. This implies that the \emph{size} of the $items$ set of a node $g$, $|g.items|$ is itself a random variable drawn from a geometric distribution with parameter $1/\gamma$ and support $[n] = \{1, \dots, n\}$. The expected value is roughly $\gamma$, and $|g.items|$ is at most $c = \lceil\log_\gamma n\rceil$ times the expected value with probability at least $1 - (1 - q)^{c\gamma}$. In other words, $\Pr[|g.items| \geq c\gamma] \leq (1 - q)^{c\gamma}$, and so $|g.items|$ is close to expectation with high probability.
+
+% , which means that:
+
+% $$
+%     \Pr[|g.items| < c \cdot \gamma] \geq 1 - \Pr[|g.items| \geq c \cdot \gamma] = 1 - (1 - q)^{c \cdot \gamma}
+% $$
+
+% \noindent and so $|g.items|$ is close to expectation with high probability.
+
+With the above in mind, the total expected number of nodes in a geometric tree is $\text{E}(|T|) = n/\gamma + 1 = nq + 1$. While this expectation is intuitive, it can be estimated more directly as the sum of the expected number of nodes at each rank $k \in \{1 \dots \beta - 1\}$, plus a root node. Since the expected number of nodes at rank $k$ is equal to the expected number of \emph{values} having rank $k + 1$, the total expected number of nodes in a geometric tree where $\beta \to \infty$ is
+
+$$
+    \sum_{k=1}^{\infty} n\left(1 - q\right)q^{k} + 1 = n\left(1 - q\right)  + 1 \sum_{k=1}^{\infty} q^{k} \text{,}
+$$
+
+\noindent and recognizing that the rightmost sum is $\frac{q}{1-q}$, substituting this into the original expression, we get
+
+$$
+    n (1 - q) \frac{q}{1 - q} + 1 = nq + 1 \text{.}
+$$
+
+To derive bounds, we leverage the fact that the sum of $n$ i.i.d geometrically distributed random variables with expectation $q = 1/\gamma$ is a negative binomially distributed random variable $Y(n, q)$. Following the concentration inequality for the sum of geometric random variables from \cite{brown2011how}, we have $\text{E}[Y(n, q)] = nq$, and for $c > 1$, $\Pr[Y > (1 + c)nq] \leq \exp{(\frac{-c^2qn}{2(1 + c)})}$. This implies that the expected total number of nodes in a geometric tree with $n$ keys is less than $nq + 1$ with high probability, and thus the expected space complexity of a geometric tree is roughly $\mathcal{O}(n)$.
+
+\subsection{Search}
+
+By construction, the nodes of the geometric tree partition the input set $S$ into a hierarchy of disjoint partitions, such that for a given $g$ we have that for all $(k, v) \in g.items$, $v.rank < g.rank$, and for all pairs $(k', v') \in v.items$, we have $k' < k$ and $v'.rank < v.rank$. Specifically, if $g \in T$ represents a subset $S_g$ of the input set $S$, then each child of $g$ represents a disjoint subset of $S_g$, and the union of all these subsets equals $S_g$. This structure ensures that each element of $S$ is uniquely represented in \emph{one} of the nodes of the tree, maintaining the integrity of the partitioning throughout the hierarchy. As such, a search for a given key will visit (or access) at most one node per rank, and will reduce the search space by a factor of roughly $\gamma$ at each step. Given that the expected height $\text{H}(T)$ of a geometric tree $T$ is close to $\lceil\log_\gamma n\rceil$ with high probability, the expected time complexity of a search operation is $\mathcal{O}(\log n)$.
+% For large $\gamma$, the \emph{average case} estimate closely matches this estimate, as search is dominated by within-node binary search. For $\gamma \approx 2$, the average case costs are slightly lower in practice.
+
+\subsection{Insert and delete}
+
+As with zip trees, an insertion or deletion in a geometric tree requires a search plus an \unzip and/or a \zip. The cost of a \zip or \unzip is proportional to the \emph{depth} of the resulting/initial sub-tree at $g$, which itself is inversly proportional to the rank of the sub-tree rooted at $g$. For instance, for node $g$ with $g.rank = k$, the depth is equal to $M_n - k - 1$, with expectation and bounds similar to those for $M_n$ itself, shifted by $k$ (i.e., for some positive constant $c$, $\Pr[M_n - k - 1 \ge (c + 1) (\log_\gamma n - k - 1)] \le n^{-c}$).
+
+In the case of \delete, when an item $y$ with a given rank $k$ is removed, we require one ``join'' operation (step) per rank~$< k$ during the \zip (i.e., the cost is equal to the depth of the sub-tree rooted at the node $g$ such that $y \in g$). Thus the expected number of join operations during a \delete is equal to the expected rank/height of a node, which as we have seen before is $\text{E}[X] = 1/p = 1/(1 - q)$ or $\text{E}[X] = (1 - q^{\beta-1})/(1 - q)$ when truncation at $\beta$ is used. Combining this with the expected number of steps in a search, we get that the expected cost of deletion is $\mathcal{O}(\log n)$ with high probability. The \insert operation is similar, with the combined cost of a search and an \unzip being proportional to the depth of the resulting sub-tree rooted at $g$ where the item $y$ is inserted. The expected cost of insertion is thus also $\mathcal{O}(\log n)$ with high probability.
+
+\appendix
+
+\section{Extensions}
+
+In this section, we outline some possible extensions to the geometric tree data structure. These include adding support for representing other high-level data structures, such as sequences, and supporting alternative data layouts, such as storing data pointers only at the leaf nodes of the tree.
+
+We can very easily (re)define both \insert and \delete operations using a functional design that works strictly based on \zip and \unzip.
+
+\begin{algorithm}[!htb]
+    \caption{Insert and delete functions based on (un)zip}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+
+    \prog{\insert{$item, root$}}{
+        $[left, node, right]$ $\gets$ \unzip{$x.key, root$}\;
+        \Return \zip{\zip{$left, item$}, $right$}\;
+    }
+    \nonl\;
+    \setcounter{AlgoLine}{0}
+    \prog{\delete{$key, root$}}{
+        $[left, node, right]$ $\gets$ \unzip{$key, root$}\;
+        \Return \zip{$left, right$}\;
+    }
+\end{algorithm}
+
+\subsection{Sequences}
+
+In our discussion of geometric trees, our focus has been using them to represent abstract container types with an explicit ordering, such associative containers (sets, maps, etc.). However, sequences are a natural next step for our discussion, as they are the simplest form of an implicitly ordered collection. Sequences are also a common building block for more complex data structures, such as lists, strings, and arrays. We consider a sequence to be an ordered collection of values, where each value is identified by its position (or index) in the sequence.
+
+Semantically, sequences are similar to our treatment of sorted sets, as they are both ordered collections of values. However, sequences differ from sets in that they allow duplicate values and are indexed by position rather than by value. This simplifies their treatment to some degree, as we are able to avoid potentially expensive comparisons between values. However, it also introduces some complexity, as we must now explicitly (rather than implicitly) consider the ordering of elements in the sequence.
+
+In practice, we are able to reuse much of the machinery we developed for the general geometric tree structure. As in \cite{pugh1989incremental}, we assume we can efficiently compute (and cache) the \length of a tree $T$, which is simply the number of elements in the sequence represented by $T$. This is assumed to be a constant-time function. Furthermore, we redefine the \split function used over our internal set structure $\mathfrak{S}$ to accept any arbitrary predicate function to identify the split, rather than just a key. For example, let $g \in T$ be a node in the tree, and let $m$ be a given offset. We define a predicate function $f: \{1, 2, \dots, |g|\} \rightarrow \{true, false\}$ as follows:
+
+$$
+    f(i) =
+    \begin{cases}
+        true  & \text{if } \sum_{j=1}^{i} \texttt{length}(g.items_i) \geq m \\
+        false & \text{otherwise}
+    \end{cases}
+$$
+
+\noindent This function takes an index $i$ and returns $true$ if the cumulative length of the first $i$ values in $g.items$ is at least $m$, and $false$ otherwise. By simply changing how we operate on $\mathfrak{S}$, the bulk of the \unzip function operates as before, though some adjustments are needed to account for the remainder of the offset $m$ at each level of recursion.
+
+\begin{algorithm}[!htb]
+    \caption{Queries on sequences using geometric trees}\label{alg:sequence-queries}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+    \SetKwFunction{first}{first}
+    \SetKwFunction{last}{last}
+
+    \prog{\first{$m, root$}}{
+        $[left, node, right]$ $\gets$ \unzip{$m, root$}\;
+        \Return $left$\;
+    }
+    \nonl\;
+    \setcounter{AlgoLine}{0}
+    \prog{\last{$m, root$}}{
+        $[left, node, right]$ $\gets$ \unzip{\length{$root$}$- m$, $root$}\;
+        \Return $right$\;
+    }
+\end{algorithm}
+
+With these minor changes, we are able to define a series of efficient queries and operations on sequences that are defined strictly in terms of the \zip and \unzip functions.
+
+\begin{algorithm}[!htb]
+    \caption{Basic operations on sequences using geometric trees}\label{alg:basic-sequence-ops}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+    \SetKwFunction{length}{length}
+
+    \prog{\insert{$m, item, root$}}{
+        \If{$root = null$ or $i >$ \length{$root$} or $i < 0$}{
+            \lIf{$i = 0$}{
+                \Return $item$
+            }\lElse{
+                \Return $null$
+            }
+        }
+        $head$ $\gets$ \first{$m, root$}\;
+        $tail$ $\gets$ \shift{$item$, \last{\length{$root$}$- m$, $root$}}\;
+        \Return \zip{$head$, $tail$}\;
+    }
+    \nonl\;
+    \setcounter{AlgoLine}{0}
+    \prog{\delete{$m, item, root$}}{
+        $head$ $\gets$ \first{$m, root$}\;
+        $tail$ $\gets$ \last{\length{$root$}$- m - 1$, $root$}\;
+        \Return \zip{$tail$, $heads$}\;
+    }
+\end{algorithm}
+
+Notice also that this set of operations (along with obvious implementations of \join and \split) is sufficient to satisfy the deque interface we require for our internal set data structure, which would allow us to bootstrap the geometric tree structure with an appropriately parameterized version of $\mathfrak{S}$.
+
+
+\begin{algorithm}[!htb]
+    \caption{Further operations on sequences using geometric trees}\label{alg:sequence-ops}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+    \prog{\push{$item, root$}}{
+        \Return \zip{$root, item$}\;
+    }
+    \nonl\;
+    \setcounter{AlgoLine}{0}
+    \prog{\shift{$item, root$}}{
+        \Return \zip{$item, root$}\;
+    }
+    \nonl\;
+    \setcounter{AlgoLine}{0}
+    \prog{\pop{$root$}}{
+        $[left, node, right]$ $\gets$ \unzip{\length{$root$}$- 1$, $root$}\;
+        \Return $[left, node]$\;
+    }
+    \nonl\;
+    \setcounter{AlgoLine}{0}
+    \prog{\unshift{$root$}}{
+        $[left, node, right]$ $\gets$ \unzip{$1$, $root$}\;
+        \Return $[right, node]$\;
+    }
+\end{algorithm}
+
+\section{Tail recursion}
+
+\SetKwFunction{id}{id}
+
+The \zip and \unzip functions can be made tail-recursive by using the continuation passing style (CPS) transformation. This is a style of programming in which the function does not return a value \emph{per se}, but instead takes an extra argument --- the continuation --- which is a function that represents the rest of the computation. This allows the function to return immediately, and the rest of the computation is represented by the continuation function. In our case, we use a continuation to optimize for tail call optimization (TCO). The function provided in alg. \ref{alg:zip-geometric} can be modified to use TCO as shown in alg. \ref{alg:zip-geometric-tail}, where \id is the identity function, and $\left(\dots args \right) \rightarrow \dots$ defines a lambda-style continuation function.
+
+\begin{algorithm}[!htb]
+    \caption{Tail recursive zip function}\label{alg:zip-geometric-tail}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+    \SetKwFunction{cont}{cont}
+    \SetKwProg{lambda}{}{$\rightarrow$}{}
+
+    \prog{\zip{$left$, $right$, \cont= \id}}{
+        \lIf{$left = null$}{
+            \Return \cont{$right$}
+        }
+        \lIf{$right = null$}{
+            \Return \cont{$left$}
+        }
+        \If{$left.rank = right.rank$}{
+            $[rights, child]$ $\gets$ \unshift{$right.items$}\;
+            \Return{\zip{$left.next$, $child.value$, \lambda{$\left(value\right)$}{
+                        $inner \gets \left(key: child.key, value\right)$\;
+                        $items$ $\gets$ \join{\push{$left.items, inner$}$, rights$}\;
+                        \Return{\cont{\norm{$\left(\dots right, items\right)$}}}
+                    }
+                }
+            }
+        }
+        \ElseIf{$left.rank < right.rank$}{
+            $[rights, child]$ $\gets$ \unshift{$right.items$}\;
+            \Return{\zip{$left$, $child.value$, \lambda{$\left(value\right)$}{
+                        $items$ $\gets$ \shift{$rights, \left(key: child.key, value\right)$}\;
+                        \Return{\cont{\norm{$\left(\dots right, items \right)$}}}
+                    }
+                }
+            }
+        }
+        \Return{\zip{$left.next, right$, \lambda{$\left(next\right)$}{
+                    \Return{\cont{\norm{$\left(\dots left, next \right)$}}}
+                }
+            }
+        }
+    }
+\end{algorithm}
+
+Similarly, the function provided in alg. \ref{alg:unzip-geometric} can be modified to use TCO as shown in alg. \ref{alg:unzip-geometric-tail}.
+
+\begin{algorithm}[!htb]
+    \caption{Tail recursive unzip function}\label{alg:unzip-geometric-tail}
+    \DontPrintSemicolon
+    \SetKwProg{prog}{}{:}{}
+    \SetKwProg{lambda}{}{$\rightarrow$}{}
+
+    \prog{\unzip{$key$, $root$, \cont= \id}}{
+        \lIf{$root = null$}{
+            \Return{\cont{$[null, null, null]$}}
+        }
+        $[lefts, node, rights]$ $\gets$ \split{$root.items, key$}\;
+        \If{$node = null$}{
+            \Return{\unzip{$key$, $root.next$, \lambda{$\left(next, n, right\right)$}{
+                        $left$ $\gets$ \norm{$\left(\dots root, next\right)$}\;
+                        \Return \cont{$[left, n, right]$}
+                    }
+                }
+            }
+        }
+        \ElseIf{$node.key = key$}{
+            $left$ $\gets$ \norm{$\left(\dots root, items: lefts, next: node.value\right)$}\;
+            $right$ $\gets$ \norm{$\left(\dots root, items: rights\right)$}\;
+            $n \gets \left(key: node.key, rank: root.rank\right)$\;
+            \Return{\cont{$[left, n, right]$}}
+        }
+        \Return{\unzip{$key$, $node[1]$, \lambda{$\left(next, n, value\right)$}{
+                    $left$ $\gets$ \norm{$\left(\dots root, items: lefts, next\right)$}\;
+                    $items$ $\gets$ \shift{$rights, \left(key: node.key, value\right)$}\;
+                    $right$ $\gets$ \norm{$\left(\dots root, items\right)$}\;
+                    \Return \cont{$[left, n, right]$}
+                }
+            }
+        }
+    }
+\end{algorithm}
+
+% To estimate the _expected_ value $\text{E}[R]$, first consider a fixed $g \in T$. It is clear that $R \ge k+1$ if and only if there is a $g \in T$ such that $\textsf{rank}(g) \ge k$. Hence $\Pr(R \ge k + 1) \le n\cdot\Pr(\textsf{rank}(g) \ge k) = n\cdot (1 - p)^{k - 1}$.
+
+% **Rank Lemma**: The expected rank of a node $g$ in a geometric tree $T$ with parameter $\gamma$ is $(1 - q^{\beta-1})/(1 - q)$, and for given $k$, the probability that the rank of a node $g$ is at least $k$ is at most $q^{k-1}$.
+
+% _Proof_: The $\textsf{rank}(g)$ of a given node $g$ in a geometric tree $T$ with parameter $p$ is a random variable drawn from a geometric distribution with parameter $p$. Hence $\Pr(\textsf{rank}(g) = k) = (1 - p)^{k-1}p$ and $\text{E}[\textsf{rank}(g)] = 1/p$; and for the common case where $p = 1/2$, $\Pr(\textsf{rank}(g) = k) = (1/2)^k$ and $\text{E}[\textsf{rank}(g)] = 2$. It follows that for any $k \ge 1$, $\textsf{rank}(g) \ge k$ if and only if the first $k − 1$ trials lead to a success. The probability that $\textsf{rank}(g) \ge k$ is the complement of the CDF (cumulative distribution function) up to $k-1$, which can be calculated directly as $\Pr(\textsf{rank}(g) \ge k) = 1 − \Pr(\textsf{rank}(g) < k) = 1 − \sum_{i=1}^{k − 1} q^{i - 1}p$. The sum of probabilities up to $k-1$ for a geometric distribution is given by the CDF itself, $\Pr(\textsf{rank}(g) < k) = 1 - q^{k-1}$. So, the probability that the rank of a node $g$ is at least $k$ is $1 - [1 - q^{k-1}] = q^{k - 1}$.
+
+% We begin with the simple fact that, by construction, the depth is at most $\beta = \lceil\log_\gamma N\rceil + 2$. Recall that $q = 1/\gamma$. For $n \ll N$, we can bound the depth as the maximum level of any element via the union bound. That is, $\Pr[\textsf{level}(x) \ge k] \le q^{k-1}$, which implies $\Pr[∃ x, \textsf{level}(x) \ge k] \le n \cdot q^{k-1}$ and so $\Pr[\text{depth} \ge (c + 1) \log_\gamma n] \le n^{-c}$.
+
+% most $q^{\beta-1}$, which is very small. This is because the geometric distribution is a "heavy-tailed" distribution, and the probability mass function decays exponentially with the rank.
+
+% _**Root Lemma**_: The expected rank $R$ of the root node $G$ in a geometric tree $T$ with parameter $p$ is at most $\lceil\log n\rceil + 1 / (1-p)$ with high probability.
+% The root rank, $R = \max\{\textsf{rank}(g): g \in T\}$ is the maximum of $n$ samples of the geometric distribution with parameter $p$. To estimate the _expected_ value $\text{E}[R]$, first consider a fixed $g \in T$. It is clear that $R \ge k+1$ if and only if there is a $g \in T$ such that $\textsf{rank}(g) \ge k$. Hence $\Pr(R \ge k + 1) \le n\cdot\Pr(\textsf{rank}(g) \ge k) = n\cdot (1 - p)^{k - 1}$.
+
+% For $k < \lceil\log n\rceil + 1$ this estimate does not hold, however, we can use the trivial upper bound $\Pr(R \ge k + 1) \le 1$. Then the bound on the expected max rank $\text{E}(R)$ can be described by combining the base contribution of $\lceil\log n\rceil + 1$ with the tail contribution, which is the simplification of the geometric series for ranks beyond $\lceil\log n\rceil$, yielding $1 / (1-p)$:
+
+% $$
+%     \sum_{k=0}^{\infty} \Pr(R \ge k + 1) = \sum_{k=0}^{\lceil\log n\rceil} \Pr(R \ge k + 1) + \sum_{k=\lceil\log n\rceil + 1}^{\infty} \Pr(R \ge k + 1)
+% $$
+
+% The first summation on the right hand side is at most $\lceil\log n\rceil + 1$. Recalling that in our context, $\log n$ actually means $\log_{1/p} n$, we can simplify the second summation by leveraging the fact that we have the sum of an infinite geometric series:
+
+% $$
+%     \sum_{k=\lceil\log n\rceil + 1}^{\infty} \Pr(R \g e k + 1) =
+%     \sum_{k=\lceil\log n\rceil + 1}^{\infty} n \cdot (1-p)^{k-1}
+% $$
+
+% **Size Lemma**: The number of children within a node $g$, in a geometric tree $T$ with parameter $p$ storing $n$ keys, has expected value $q$ and is at most $\lceil\log_\gamma n\rceil/p$ with high probability.
+
+% https://stats.stackexchange.com/q/123208/9616
+
+\clearpage
+\bibliographystyle{plain}
+\bibliography{\jobname}
+
+\end{document}
