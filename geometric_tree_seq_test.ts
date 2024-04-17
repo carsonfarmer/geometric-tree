@@ -1,12 +1,16 @@
 import { assert, assertEquals, frozen, random, shuffle } from "./test_utils.ts";
 import { GeometricSequence } from "./geometric_tree_seq.ts";
 import { GeometricTree, unzip } from "./geometric_tree.ts";
+import { ArrayList } from "./list.ts";
+
+// const create = <T>() => new LinkedList<T>();
+const create = <T>() => new ArrayList<T>();
 
 Deno.test({
   name: "from",
   only: false,
   fn: () => {
-    const tree = GeometricSequence.from(frozen);
+    const tree = GeometricSequence.from(frozen, create);
     assertEquals(tree.toArray(), frozen);
   },
 });
@@ -16,7 +20,7 @@ Deno.test({
   only: false,
   fn: () => {
     const entries = shuffle(frozen);
-    const tree = GeometricSequence.from(entries);
+    const tree = GeometricSequence.from(entries, create);
     for (const [i, item] of entries.entries()) {
       const node = tree.at(i);
       assertEquals(node, item);
@@ -29,8 +33,8 @@ Deno.test({
   name: "insert",
   only: false,
   fn: () => {
-    const tree = GeometricTree.from(frozen);
-    let root = GeometricSequence.empty();
+    const tree = GeometricTree.from(frozen, create);
+    let root = GeometricSequence.empty(create);
     for (const [i, pair] of frozen.entries()) {
       root = root.insert(i, pair);
     }
@@ -45,7 +49,7 @@ Deno.test({
   name: "remove",
   only: false,
   fn: () => {
-    const tree = GeometricSequence.from(frozen);
+    const tree = GeometricSequence.from(frozen, create);
     let root = tree;
     for (let _i = 0; _i < 10; _i++) {
       root = root.remove(0);
@@ -55,10 +59,10 @@ Deno.test({
     assertEquals(tree.toArray(), frozen);
     assertEquals(root.toArray(), frozen.slice(10));
     // Remove the root node
-    root = root.remove(root.root?.items[0]?.key as number);
+    root = root.remove(root.root?.items.first()?.key as number);
     assert(!root.isEmpty());
 
-    assert(GeometricSequence.empty().remove(0).isEmpty());
+    assert(GeometricSequence.empty(create).remove(0).isEmpty());
   },
 });
 
@@ -66,7 +70,7 @@ Deno.test({
   name: "size",
   only: false,
   fn: () => {
-    const tree = GeometricSequence.from(frozen);
+    const tree = GeometricSequence.from(frozen, create);
     assertEquals(tree.length(), frozen.length);
     const [left, right] = [tree.slice(0, 16), tree.slice(15)];
     assertEquals(left?.length(), 15);
@@ -90,7 +94,7 @@ Deno.test({
   only: false,
   fn: () => {
     const pairs = random(1000);
-    let tree = GeometricSequence.empty();
+    let tree = GeometricSequence.empty(create);
     for (const [i, { key, rank }] of pairs.entries()) {
       tree = tree.insert(i, { key, rank });
     }
@@ -108,7 +112,7 @@ Deno.test({
   only: false,
   fn: () => {
     const pairs = random(1000);
-    let tree = GeometricSequence.empty();
+    let tree = GeometricSequence.empty(create);
     for (const [i, node] of pairs.entries()) {
       tree = tree.insert(i, node);
     }
@@ -119,7 +123,7 @@ Deno.test({
     }
     assertEquals(deleted.toArray(), pairs.slice(100));
     // The from static method requires a sorted array
-    const reduced = GeometricSequence.from(pairs.slice(100));
+    const reduced = GeometricSequence.from(pairs.slice(100), create);
     assertEquals(deleted, reduced);
     assertEquals(deleted.length(), 900);
     // The remaining nodes should still be in the tree, but all at the shifted indexes
@@ -135,14 +139,14 @@ Deno.test({
   name: "first",
   only: false,
   fn: () => {
-    const seq = GeometricSequence.from(frozen);
+    const seq = GeometricSequence.from(frozen, create);
     const firstFive = seq.first(5);
     assertEquals(firstFive.toArray(), frozen.slice(0, 5));
     assertEquals(firstFive.length(), 5);
     const firstEmpty = seq.first(0);
-    assertEquals(firstEmpty, GeometricSequence.empty());
-    const firstNull = GeometricSequence.empty().first(5);
-    assertEquals(firstNull, GeometricSequence.empty());
+    assertEquals(firstEmpty, GeometricSequence.empty(create));
+    const firstNull = GeometricSequence.empty(create).first(5);
+    assertEquals(firstNull, GeometricSequence.empty(create));
     const [leftFive] = unzip(12, seq.root);
     assertEquals(firstFive.root, leftFive);
     const firstFifteen = seq.first(15);
@@ -157,7 +161,7 @@ Deno.test({
   name: "first sizes",
   only: false,
   fn: () => {
-    const seq = GeometricSequence.from(frozen);
+    const seq = GeometricSequence.from(frozen, create);
     const firstFive = seq.first(5);
     assertEquals(firstFive?.length(), 5);
     const [leftFive] = unzip(12, seq.root);
@@ -171,17 +175,17 @@ Deno.test({
   name: "last",
   only: false,
   fn: () => {
-    const seq = GeometricSequence.from(frozen);
+    const seq = GeometricSequence.from(frozen, create);
     const lastFive = seq.last(5);
     assertEquals(lastFive.toArray(), frozen.slice(-5));
     const lastEmpty = seq.last(0);
-    assertEquals(lastEmpty, GeometricSequence.empty());
-    const lastNull = GeometricSequence.empty().last(5);
-    assertEquals(lastNull, GeometricSequence.empty());
-    const [, , rightFive] = unzip(50, seq.root);
+    assertEquals(lastEmpty, GeometricSequence.empty(create));
+    const lastNull = GeometricSequence.empty(create).last(5);
+    assertEquals(lastNull, GeometricSequence.empty(create));
+    const [, rightFive] = unzip(50, seq.root);
     assertEquals(lastFive.root, rightFive);
     const lastFifteen = seq.last(15);
-    const [, , rightFifteen] = unzip(12, seq.root);
+    const [, rightFifteen] = unzip(12, seq.root);
     assertEquals(lastFifteen.root, rightFifteen);
     // Original sequence should remain unchanged.
     assertEquals(seq.toArray(), frozen);
@@ -192,10 +196,10 @@ Deno.test({
   name: "last sizes",
   only: false,
   fn: () => {
-    const seq = GeometricSequence.from(frozen);
+    const seq = GeometricSequence.from(frozen, create);
     const lastFive = seq.last(5);
     assertEquals(lastFive.length(), 5);
-    const [, , rightFifteen] = unzip(12, seq.root);
+    const [, rightFifteen] = unzip(12, seq.root);
     assertEquals(rightFifteen?.size, 15);
     const lastFifteen = seq.last(15);
     assertEquals(lastFifteen.length(), 15);
@@ -206,7 +210,7 @@ Deno.test({
   name: "first/last contrived",
   only: false,
   fn: () => {
-    let seq = GeometricSequence.empty();
+    let seq = GeometricSequence.empty(create);
     // We use push here because we are assuming a sorted sequence.
     // There are no "left" nodes here, only nodes to the right.
     seq = seq.push({ key: "B", rank: 0 }); // B; level 0
@@ -220,10 +224,16 @@ Deno.test({
 
     // We ask for more than the size of the sequence, which should still
     // end up with the correct size value being set on the returned node.
-    const singleFirst = GeometricSequence.singleton({ key: "A", rank: 0 })
+    const singleFirst = GeometricSequence.singleton(
+      { key: "A", rank: 0 },
+      create,
+    )
       .first(2);
     assertEquals(singleFirst.length(), 1);
-    const singleLast = GeometricSequence.singleton({ key: "A", rank: 0 }).last(
+    const singleLast = GeometricSequence.singleton(
+      { key: "A", rank: 0 },
+      create,
+    ).last(
       2,
     );
     assertEquals(singleLast.length(), 1);
@@ -234,7 +244,7 @@ Deno.test({
   name: "split",
   only: false,
   fn: () => {
-    let seq = GeometricSequence.empty();
+    let seq = GeometricSequence.empty(create);
     const shuffled = shuffle(frozen);
     for (const node of shuffled) {
       seq = seq.push(node);
@@ -247,9 +257,9 @@ Deno.test({
     assertEquals(leftArray.at(-1), shuffled[14]);
     // Original tree should remain unchanged.
     assertEquals(seq.toArray(), shuffled);
-    const [emptyLeft, emptyRight] = GeometricSequence.empty().split(12);
-    assertEquals(emptyLeft, GeometricSequence.empty());
-    assertEquals(emptyRight, GeometricSequence.empty());
+    const [emptyLeft, emptyRight] = GeometricSequence.empty(create).split(12);
+    assertEquals(emptyLeft, GeometricSequence.empty(create));
+    assertEquals(emptyRight, GeometricSequence.empty(create));
   },
 });
 
@@ -257,15 +267,15 @@ Deno.test({
   name: "split independent",
   only: false,
   fn: () => {
-    let seq = GeometricSequence.empty();
+    let seq = GeometricSequence.empty(create);
     const shuffled = shuffle(frozen);
     for (const node of shuffled) {
       seq = seq.push(node);
     }
     // Split the tree at the root, just because
     const [left, right] = seq.split(10);
-    let leftSide = GeometricSequence.empty(),
-      rightSide = GeometricSequence.empty();
+    let leftSide = GeometricSequence.empty(create),
+      rightSide = GeometricSequence.empty(create);
 
     for (const node of seq.first(10).toArray()) {
       leftSide = leftSide.push(node);
@@ -283,7 +293,7 @@ Deno.test({
   name: "ranges",
   only: false,
   fn: () => {
-    const seq = GeometricSequence.from(frozen);
+    const seq = GeometricSequence.from(frozen, create);
     const middleFive = seq.first(15).last(5);
     assertEquals(middleFive.length(), 5);
     assertEquals(seq.slice(10, 16), middleFive);
@@ -303,7 +313,7 @@ Deno.test({
   name: "insert",
   only: false,
   fn: () => {
-    let seq = GeometricSequence.empty();
+    let seq = GeometricSequence.empty(create);
     for (const [i, node] of frozen.entries()) {
       seq = seq.insert(i, node);
     }
@@ -311,8 +321,8 @@ Deno.test({
 
     // Can't insert at an index that doesn't exist.
     assertEquals(
-      GeometricSequence.empty().insert(1, { key: 0, rank: 0 }),
-      GeometricSequence.empty(),
+      GeometricSequence.empty(create).insert(1, { key: 0, rank: 0 }),
+      GeometricSequence.empty(create),
     );
   },
 });
@@ -321,7 +331,7 @@ Deno.test({
   name: "push",
   only: false,
   fn: () => {
-    let seq = GeometricSequence.empty();
+    let seq = GeometricSequence.empty(create);
     for (const node of frozen) {
       seq = seq.push(node);
     }
@@ -333,8 +343,8 @@ Deno.test({
   name: "push vs insert",
   only: false,
   fn: () => {
-    let pushed = GeometricSequence.empty();
-    let inserted = GeometricSequence.empty();
+    let pushed = GeometricSequence.empty(create);
+    let inserted = GeometricSequence.empty(create);
     for (const [i, node] of shuffle([...frozen]).entries()) {
       pushed = pushed.push(node);
       inserted = inserted.insert(i, node);
@@ -348,7 +358,7 @@ Deno.test({
   name: "unshift",
   only: false,
   fn: () => {
-    let seq = GeometricSequence.empty();
+    let seq = GeometricSequence.empty(create);
     for (const node of [...frozen].reverse()) {
       seq = seq.unshift(node);
     }
@@ -361,7 +371,7 @@ Deno.test({
   only: false,
   fn: () => {
     const shuffled = shuffle(frozen);
-    let seq = GeometricSequence.empty();
+    let seq = GeometricSequence.empty(create);
     for (const node of shuffled) {
       seq = seq.push(node);
     }
@@ -380,10 +390,10 @@ Deno.test({
     const node = seq.at(10);
     assertEquals(node, shuffled.at(shuffled.length - 1));
 
-    assertEquals(GeometricSequence.empty().at(0), undefined);
+    assertEquals(GeometricSequence.empty(create).at(0), undefined);
     assertEquals(
-      GeometricSequence.empty().remove(0),
-      GeometricSequence.empty(),
+      GeometricSequence.empty(create).remove(0),
+      GeometricSequence.empty(create),
     );
   },
 });

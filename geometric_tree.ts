@@ -1,13 +1,5 @@
-import { Item, ZipTree } from "./api.ts";
-import {
-  find,
-  isEmpty,
-  join,
-  push,
-  shift,
-  split,
-  unshift,
-} from "./array_ops.ts";
+import { Item } from "./api.ts";
+import { List } from "./list.ts";
 
 export type Pair<K> = { key: K; value?: Node<K> };
 
@@ -15,25 +7,23 @@ export { type Item };
 
 export interface Node<K> {
   rank: number;
-  items: ReadonlyArray<Pair<K>>;
+  items: List<Pair<K>>;
   size: number;
   next?: Node<K>;
 }
 
-export class GeometricTree<K> implements ZipTree<K> {
+export class GeometricTree<K> { //implements ZipTree<K> {
   constructor(
-    /**
-     * The root node of the tree.
-     */
-    public root?: Node<K>,
+    public root: Node<K> | undefined,
+    public create: <T>() => List<T>,
   ) {}
 
   /**
    * Create an empty GeneralizedZipTree.
    * @returns An empty GeneralizedZipTree.
    */
-  static empty<K>() {
-    return new GeometricTree<K>(undefined);
+  static empty<K>(create: <T>() => List<T>) {
+    return new GeometricTree<K>(undefined, create);
   }
 
   /**
@@ -43,8 +33,9 @@ export class GeometricTree<K> implements ZipTree<K> {
    */
   static singleton<K>(
     item: Item<K>,
+    create: <T>() => List<T>,
   ) {
-    return new GeometricTree<K>(singleton(item));
+    return new GeometricTree<K>(singleton(item, create), create);
   }
 
   /**
@@ -54,9 +45,10 @@ export class GeometricTree<K> implements ZipTree<K> {
    */
   static from<K>(
     array: ReadonlyArray<Item<K>>,
+    create: <T>() => List<T>,
   ) {
-    const root = from(array);
-    return new GeometricTree<K>(root);
+    const root = from(array, create);
+    return new GeometricTree<K>(root, create);
   }
 
   /**
@@ -90,9 +82,9 @@ export class GeometricTree<K> implements ZipTree<K> {
    * @param item The item to insert.
    * @returns A new tree with the item inserted.
    */
-  insert(item: Item<K>) {
-    const root = insert(item, this.root);
-    return new GeometricTree<K>(root);
+  insert(item: Item<K>): GeometricTree<K> {
+    const root = insert(item, this.root, this.create);
+    return new GeometricTree<K>(root, this.create);
   }
 
   /**
@@ -100,9 +92,9 @@ export class GeometricTree<K> implements ZipTree<K> {
    * @param key The key of the item to remove.
    * @returns A new tree with the item removed.
    */
-  remove(key: K) {
+  remove(key: K): GeometricTree<K> {
     const root = remove(key, this.root);
-    return new GeometricTree<K>(root);
+    return new GeometricTree<K>(root, this.create);
   }
 
   /**
@@ -112,12 +104,11 @@ export class GeometricTree<K> implements ZipTree<K> {
    */
   unzip(
     key: K,
-  ): [GeometricTree<K>, Item<K> | undefined, GeometricTree<K>] {
-    const [left, node, right] = unzip(key, this.root);
+  ): [GeometricTree<K>, GeometricTree<K>] {
+    const [left, right] = unzip(key, this.root);
     return [
-      new GeometricTree<K>(left),
-      node,
-      new GeometricTree<K>(right),
+      new GeometricTree<K>(left, this.create),
+      new GeometricTree<K>(right, this.create),
     ];
   }
 
@@ -127,9 +118,9 @@ export class GeometricTree<K> implements ZipTree<K> {
    * All of the keys in the other tree must be greater than the keys in this tree.
    * @returns A new tree with the two trees joined.
    */
-  zip(other: GeometricTree<K>) {
+  zip(other: GeometricTree<K>): GeometricTree<K> {
     const root = zip(this.root, other.root);
-    return new GeometricTree<K>(root);
+    return new GeometricTree<K>(root, this.create);
   }
 
   /**
@@ -139,9 +130,13 @@ export class GeometricTree<K> implements ZipTree<K> {
    * All of the keys in the right tree must be greater than the keys in the left tree.
    * @returns A new tree with the two trees joined.
    */
-  static zip<K>(left: GeometricTree<K>, right: GeometricTree<K>) {
+  static zip<K>(
+    left: GeometricTree<K>,
+    right: GeometricTree<K>,
+    create: <T>() => List<T>,
+  ): GeometricTree<K> {
     const root = zip(left.root, right.root);
-    return new GeometricTree<K>(root);
+    return new GeometricTree<K>(root, create);
   }
 
   /**
@@ -183,18 +178,15 @@ export function sized<K>(
 export function norm<K>(
   node: Omit<Node<K>, "size">,
 ): Node<K> | undefined {
-  return isEmpty(node.items) ? node.next : sized(node);
+  return node.items.isEmpty() ? node.next : sized(node);
 }
 
 export function singleton<K>(
   item: Item<K>,
+  create: <K>() => List<K>,
 ): Node<K> {
-  const items = Array.from<Pair<K>>([{
-    key: item.key,
-    value: undefined,
-  }]);
   return {
-    items,
+    items: create<Pair<K>>().push({ key: item.key, value: undefined }),
     rank: item.rank,
     size: 1,
     next: undefined,
@@ -203,7 +195,7 @@ export function singleton<K>(
 
 export function from<K>(
   values: ReadonlyArray<Item<K>>,
-  cls = Array<Pair<K>>,
+  create: <T>() => List<T>,
 ): Node<K> | undefined {
   if (values.length == 0) {
     return undefined;
@@ -213,128 +205,17 @@ export function from<K>(
     .from(values.entries())
     .filter(([, item]) => item.rank === rank)
     .map(([i]) => i);
-  let items = new cls();
-  let prev = 0;
-  for (let i = 0; i < splits.length; i++) {
-    const subset = values.slice(prev, splits[i]);
-    items = push(items, {
-      key: values[splits[i]].key,
-      value: from(subset, cls),
+  const items = splits.reduce((acc, curr, i, arr) => {
+    const start = arr[i - 1] + 1 ?? 0;
+    const subset = values.slice(start, curr);
+    return acc.push({
+      key: values[curr].key,
+      value: from(subset, create),
     });
-    prev = splits[i] + 1;
-  }
-  const next = from(values.slice(prev), cls);
-  return norm({ items, rank, next });
+  }, create<Pair<K>>());
+  const next = from(values.slice(splits[splits.length - 1] + 1), create);
+  return sized({ items, rank, next });
 }
-
-export function fromAtLeafs<K>(
-  values: ReadonlyArray<Item<K>>,
-  cls = Array<Pair<K>>,
-): Node<K> | undefined {
-  if (values.length == 0) {
-    return undefined;
-  }
-  const rank = Math.max(...values.map((item) => item.rank).slice(1));
-  const splits = Array
-    .from(values.entries())
-    .filter(([, item]) => item.rank === rank)
-    .map(([i]) => i);
-  if (rank === 1 || values.length === 1) {
-    const pointer = {
-      items: values,
-      rank: Math.max(rank, 1),
-      size: values.length,
-    };
-    console.log("early", pointer);
-    return pointer;
-  }
-  let items = new cls();
-  let prev = 0;
-  for (let i = 0; i < splits.length; i++) {
-    const subset = values.slice(prev, splits[i]);
-    const value = fromAtLeafs(subset, cls);
-    if (value?.rank === 1) {
-      console.log("late", value);
-    }
-    items = push(items, {
-      key: values[splits[i]].key,
-      value,
-    });
-    prev = splits[i];
-  }
-  const next = fromAtLeafs(values.slice(prev), cls);
-  return norm({ items, rank, next });
-}
-
-type PPair<K> = { key: K; value?: PNode<K> };
-
-type Pointer<K> = PNode<K> & { pointer: true };
-
-interface PNode<K> {
-  rank: number;
-  items: ReadonlyArray<PPair<K>>;
-  size: number;
-  next?: PNode<K> | Pointer<K>;
-}
-
-// export function fromAtLeafWithPointers<K>(
-//   values: ReadonlyArray<Item<K>>,
-//   cls = Array<PPair<K>>,
-//   other: PNode<K> | undefined = undefined,
-// ): [PNode<K>?, Pointer<K>?] {
-//   if (values.length == 0) {
-//     return [undefined, undefined];
-//   }
-//   const rank = Math.max(...values.map((item) => item.rank).slice(1));
-//   const splits = Array
-//     .from(values.entries())
-//     .filter(([, item]) => item.rank === rank)
-//     .map(([i]) => i);
-//   if (rank === 1 || values.length === 1) {
-//     const pointer = {
-//       items: values,
-//       rank: Math.max(rank, 1),
-//       size: values.length,
-//       next: undefined,
-//     };
-//     return [pointer, { ...pointer, pointer: true }];
-//   }
-//   let items = new cls();
-//   let prev = 0;
-//   let lastLeaf: PNode<K> | undefined = undefined;
-//   let first = true;
-//   for (let i = 0; i < splits.length; i++) {
-//     const subset = values.slice(prev, splits[i]);
-//     const [value, leaf]: [PNode<K>?, Pointer<K>?] = fromAtLeafWithPointers(
-//       subset,
-//       cls,
-//       lastLeaf?.next,
-//     );
-//     if (other && other.rank === 1 && first && value) {
-//       other.next = { ...value, pointer: true };
-//       first = false;
-//     }
-//     if (lastLeaf !== undefined && lastLeaf.rank === 1 && leaf) {
-//       lastLeaf.next = { ...leaf, pointer: true };
-//     }
-//     items = push(items, {
-//       key: values[splits[i]].key,
-//       value,
-//     });
-//     prev = splits[i];
-//     lastLeaf = value;
-//   }
-//   const [next, leaf] = fromAtLeafWithPointers(
-//     values.slice(prev),
-//     cls,
-//     lastLeaf?.next,
-//   );
-//   if (lastLeaf !== undefined && lastLeaf.rank === 1 && leaf) {
-//     lastLeaf.next = { ...leaf, pointer: true };
-//   }
-//   const pointer = norm({ items, rank, next });
-//   return [pointer, leaf];
-// }
 
 export function search<K>(
   key: K,
@@ -343,12 +224,12 @@ export function search<K>(
   if (root === undefined) {
     return undefined;
   }
-  const item = find(root.items, (item) => item.key >= key);
+  const item = root.items.find((item) => item.key >= key);
   if (item?.key === key) {
     const size = item.value?.size ?? 0;
     return { key: item.key, rank: root.rank, size };
   }
-  const next = item ? item.value : root.next;
+  const next = item?.value ?? root.next;
   return search(key, next);
 }
 
@@ -359,20 +240,84 @@ export function search<K>(
  * curry them by injecting the correct (un)zip function. But for now, we'll
  * keep them separate.
  */
-export function insert<K>(
+export function _put<K>(
   item: Item<K>,
-  root?: Node<K>,
+  root: Node<K> | undefined,
+  create: <T>() => List<T>,
 ): Node<K> | undefined {
   if (root === undefined) {
-    return singleton(item);
+    return singleton(item, create);
   }
-  const [left, _, right] = unzip(item.key, root);
-  return zip(zip(left, singleton(item)), right);
+  const [left, right] = unzip(item.key, root);
+  return zip(zip(left, singleton(item, create)), right);
 }
 
 /**
- * Again, this is identical to the remove operation in the ZipTree implementation.
+ * An elegant recursive implementation of the delete operation defined in terms of unzip and zip.
  */
+export function _del<K>(
+  key: K,
+  root?: Node<K>,
+): Node<K> | undefined {
+  if (root === undefined) {
+    return undefined;
+  }
+  const [left, right] = unzip(key, root);
+  return zip(left, right);
+}
+
+export function insert<K>(
+  node: Item<K>,
+  root: Node<K> | undefined,
+  create: <T>() => List<T>,
+): Node<K> {
+  if (root === undefined) {
+    return singleton(node, create);
+  }
+  // Search the current node
+  const [lefts, item, rights] = root.items.split(
+    (item) => item.key >= node.key,
+  );
+  if (item) {
+    // Short-circuit to avoid duplicate keys
+    if (item.key === node.key) {
+      return root;
+    }
+    // Search left
+    const left = insert(node, item.value, create);
+    if (left.rank < root.rank) {
+      const items = lefts.push({ ...item, value: left }).join(rights);
+      return norm({ ...root, items })!;
+    } else if (left.rank === root.rank) {
+      const items = lefts
+        .join(left.items)
+        .push({ ...item, value: left.next })
+        .join(rights);
+      return norm({ ...root, items })!;
+    } // else if (left.rank > root.rank) {
+    const rightItems = rights.unshift({ ...item, value: left.next });
+    const next = norm({ ...root, items: rightItems });
+    const last = left.items.last()!;
+    const value = norm({ ...root, items: lefts, next: last.value });
+    const leftItems = left.items.pop().push({ ...last, value });
+    return norm({ ...left, items: leftItems, next })!;
+  } else {
+    // Search right
+    const right = insert(node, root.next, create);
+    if (right.rank < root.rank) {
+      const items = lefts;
+      return norm({ ...root, items, next: right })!;
+    } else if (right.rank === root.rank) {
+      const items = lefts.join(right.items);
+      return norm({ ...root, items, next: right.next })!;
+    } // else if (right.rank > root.rank) {
+    const last = right.items.last()!;
+    const value = norm({ ...root, items: lefts, next: last.value });
+    const items = right.items.pop().push({ ...last, value });
+    return norm({ ...right, items })!;
+  }
+}
+
 export function remove<K>(
   key: K,
   root?: Node<K>,
@@ -380,8 +325,26 @@ export function remove<K>(
   if (root === undefined) {
     return undefined;
   }
-  const [left, _, right] = unzip(key, root);
-  return zip(left, right);
+  // Search the current node
+  const [lefts, item, rights] = root.items.split(
+    (item) => item.key >= key,
+  );
+  if (item) {
+    if (item.key === key) {
+      // Found it, remove it and zip the children
+      const left = norm({ ...root, items: lefts, next: item.value });
+      const right = norm({ ...root, items: rights });
+      return zip(left, right);
+    }
+    // Search left
+    const value = remove(key, item.value);
+    const items = lefts.push({ ...item, value }).join(rights);
+    return norm({ ...root, items });
+  }
+  // Search right
+  const next = remove(key, root.next);
+  const items = lefts.join(rights);
+  return norm({ ...root, items, next });
 }
 
 /**
@@ -396,72 +359,72 @@ export function unzip<K>(
   root?: Node<K>,
   cont: (
     left?: Node<K>,
-    n?: Item<K>,
     right?: Node<K>,
-  ) => [Node<K>?, Item<K>?, Node<K>?] = (l, n, r) => [l, n, r],
-): [Node<K>?, Item<K>?, Node<K>?] {
+  ) => [Node<K>?, Node<K>?] = (l, r) => [l, r],
+): [Node<K>?, Node<K>?] {
   if (root === undefined) {
-    return cont(undefined, undefined, undefined);
+    return cont(undefined, undefined);
   }
-  const [lefts, node, rights] = split(
-    root.items,
+  const [lefts, node, rights] = root.items.split(
     (item) => item.key >= key,
   );
   if (node) {
     if (node.key === key) {
+      // If we actually found it exactly... remove it and return the two sides
       const left = norm({ ...root, items: lefts, next: node.value });
       const right = norm({ ...root, items: rights });
-      const item = { key: node.key, rank: root.rank };
-      return cont(left, item, right);
+      return cont(left, right);
     }
-    return unzip(key, node.value, (next, item, value) => {
+    // Otherwise, move down the tree to keep looking for the key
+    return unzip(key, node.value, (next, value) => {
       const left = norm({ ...root, items: lefts, next });
-      const items = unshift<Pair<K>>(rights, { key: node.key, value });
+      const items = rights.unshift({ ...node, value });
       const right = norm({ ...root, items });
-      return cont(left, item, right);
+      return cont(left, right);
     });
   }
-  return unzip(key, root.next, (next, item, right) => {
-    const left = norm({ ...root, next });
-    return cont(left, item, right);
+  // If we didn't find it, skip to the next node
+  return unzip(key, root.next, (next, right) => {
+    // Items already is equal to lefts... we're just showing it explicitly here
+    const left = norm({ ...root, items: lefts, next });
+    return cont(left, right);
   });
 }
 
-/**
- * Split the input tree into two balanced sub-trees.
- * @param key The key to split the tree on.
- * @param root The root node of the tree.
- * @returns A tuple of the left and right trees.
- */
-export function unzipBase<K>(
-  key: K,
-  root?: Node<K>,
-): [Node<K> | undefined, Item<K> | undefined, Node<K> | undefined] {
-  if (root === undefined) {
-    return [undefined, undefined, undefined];
-  }
-  const [lefts, node, rights] = split(
-    root.items,
-    (item) => item.key >= key,
-  );
-  if (node) {
-    if (node.key === key) {
-      const left = norm({ ...root, items: lefts, next: node.value });
-      const right = norm({ ...root, items: rights });
-      const item = { key: node.key, rank: root.rank };
-      return [left, item, right];
-    }
-    const [next, item, value] = unzipBase(key, node.value);
-    const left = norm({ ...root, items: lefts, next });
-    const items = unshift<Pair<K>>(rights, { key: node.key, value });
-    const right = norm({ ...root, items });
-    return [left, item, right];
-  } else {
-    const [next, item, right] = unzipBase(key, root.next);
-    const left = norm({ ...root, next });
-    return [left, item, right];
-  }
-}
+// /**
+//  * Split the input tree into two balanced sub-trees.
+//  * @param key The key to split the tree on.
+//  * @param root The root node of the tree.
+//  * @returns A tuple of the left and right trees.
+//  */
+// export function unzipBase<K>(
+//   key: K,
+//   root?: Node<K>,
+// ): [Node<K> | undefined, Item<K> | undefined, Node<K> | undefined] {
+//   if (root === undefined) {
+//     return [undefined, undefined, undefined];
+//   }
+//   const [lefts, node, rights] = root.items.split(
+//     (item) => item.key >= key,
+//   );
+//   if (node) {
+//     if (node.key === key) {
+//       const left = norm({ ...root, items: lefts, next: node.value });
+//       const right = norm({ ...root, items: rights });
+//       const item = { key: node.key, rank: root.rank };
+//       return [left, item, right];
+//     }
+//     const [next, item, value] = unzipBase(key, node.value);
+//     const left = norm({ ...root, items: lefts, next });
+//     const items = rights.unshift<Pair<K>>({ key: node.key, value });
+//     const right = norm({ ...root, items });
+//     return [left, item, right];
+//   } else {
+//     const [next, item, right] = unzipBase(key, root.next);
+//     const left = norm({ ...root, next });
+//     return [left, item, right];
+//   }
+// }
 
 /**
  * zip function that uses continuation-passing style to achieve tail recursion.
@@ -481,52 +444,53 @@ export function zip<K>(
     return cont(left);
   }
   if (left.rank === right.rank) {
-    const [rights, child] = shift(right.items);
-    return zip(left.next, child?.value, (value) => {
-      const inner: Pair<K> = { key: child!.key, value };
-      const items = join(push(left.items, inner), rights);
+    const child = right.items.first()!;
+    return zip(left.next, child.value, (value) => {
+      const items = left.items.push({ key: child.key, value }).join(
+        right.items.shift(),
+      );
       return cont(norm({ ...right, items }));
     });
   } else if (left.rank < right.rank) {
-    const [rights, child] = shift(right.items);
-    return zip(left, child?.value, (value) => {
-      const items = unshift<Pair<K>>(rights, { key: child!.key, value });
+    const child = right.items.first()!;
+    return zip(left, child.value, (value) => {
+      const items = right.items.shift().unshift({ key: child.key, value });
       return cont(norm({ ...right, items }));
     });
   }
   return zip(left.next, right, (next) => cont(norm({ ...left, next })));
 }
 
-/**
- * Join two trees into a single tree.
- * @param left The left-hand tree.
- * @param right The right-hand tree.
- * @returns A new tree with the two trees joined.
- */
-export function zipBase<K>(
-  left?: Node<K>,
-  right?: Node<K>,
-): Node<K> | undefined {
-  if (left === undefined) {
-    return right;
-  } else if (right === undefined) {
-    return left;
-  } else if (left.rank === right.rank) {
-    const [rights, child] = shift(right.items);
-    const value = zipBase(left.next, child?.value);
-    const inner: Pair<K> = { key: child!.key, value };
-    const items = join(push(left.items, inner), rights);
-    return norm({ ...right, items });
-  } else if (left.rank < right.rank) {
-    const [rights, child] = shift(right.items);
-    const value = zipBase(left, child?.value);
-    const items = unshift<Pair<K>>(rights, { key: child!.key, value });
-    return norm({ ...right, items });
-  } else {
-    const next = zipBase(left.next, right);
-    return norm({ ...left, next });
-  }
-}
+// /**
+//  * Join two trees into a single tree.
+//  * @param left The left-hand tree.
+//  * @param right The right-hand tree.
+//  * @returns A new tree with the two trees joined.
+//  */
+// export function zipBase<K>(
+//   left?: Node<K>,
+//   right?: Node<K>,
+// ): Node<K> | undefined {
+//   if (left === undefined) {
+//     return right;
+//   } else if (right === undefined) {
+//     return left;
+//   } else if (left.rank === right.rank) {
+//     const [rights, child] = shift(right.items);
+//     const value = zipBase(left.next, child?.value);
+//     const inner: Pair<K> = { key: child!.key, value };
+//     const items = join(push(left.items, inner), rights);
+//     return norm({ ...right, items });
+//   } else if (left.rank < right.rank) {
+//     const [rights, child] = shift(right.items);
+//     const value = zipBase(left, child?.value);
+//     const items = unshift<Pair<K>>(rights, { key: child!.key, value });
+//     return norm({ ...right, items });
+//   } else {
+//     const next = zipBase(left.next, right);
+//     return norm({ ...left, next });
+//   }
+// }
 
 export function* iter<K>(
   root: Node<K> | undefined,
@@ -559,10 +523,7 @@ export function* mermaidNodes<K>(
   if (parentId !== "") {
     yield `${parentId} --> ${nodeId}`;
   }
-  // if (node.pointer) {
-  //   return;
-  // }
-  const items: ReadonlyArray<Pair<K>> | undefined = node.items;
+  const items = node.items;
   for (const { value } of items) {
     if (value !== undefined) {
       yield* mermaidNodes(value, nodeId);

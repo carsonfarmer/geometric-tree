@@ -9,21 +9,23 @@ import {
   zip,
 } from "./geometric_tree.ts";
 import { split as _split, unshift as _unshift } from "./array_ops.ts";
+import { List } from "./list.ts";
 
 export class GeometricSequence<K> {
   constructor(
     /**
      * The root node of the tree.
      */
-    public root?: Node<K>,
+    public root: Node<K> | undefined,
+    public create: <T>() => List<T>,
   ) {}
 
   /**
    * Create an empty ZipTree.
    * @returns An empty ZipTree.
    */
-  static empty<K>(): GeometricSequence<K> {
-    return new GeometricSequence<K>();
+  static empty<K>(create: <T>() => List<T>): GeometricSequence<K> {
+    return new GeometricSequence<K>(undefined, create);
   }
 
   /**
@@ -33,8 +35,9 @@ export class GeometricSequence<K> {
    */
   static singleton<K>(
     item: Item<K>,
+    create: <T>() => List<T>,
   ): GeometricSequence<K> {
-    return new GeometricSequence<K>(singleton(item));
+    return new GeometricSequence<K>(singleton(item, create), create);
   }
 
   /**
@@ -44,9 +47,10 @@ export class GeometricSequence<K> {
    */
   static from<K>(
     array: ReadonlyArray<Item<K>>,
+    create: <T>() => List<T>,
   ): GeometricSequence<K> {
-    const root = from(array);
-    return new GeometricSequence<K>(root);
+    const root = from(array, create);
+    return new GeometricSequence<K>(root, create);
   }
 
   /**
@@ -72,8 +76,8 @@ export class GeometricSequence<K> {
    * @returns A new tree with the item inserted.
    */
   insert(i: number, item: Item<K>) {
-    const root = insert(i, item, this.root);
-    return new GeometricSequence<K>(root);
+    const root = insert(i, item, this.root, this.create);
+    return new GeometricSequence<K>(root, this.create);
   }
 
   /**
@@ -83,7 +87,7 @@ export class GeometricSequence<K> {
    */
   remove(i: number) {
     const root = remove(i, this.root);
-    return new GeometricSequence<K>(root);
+    return new GeometricSequence<K>(root, this.create);
   }
 
   /**
@@ -93,7 +97,7 @@ export class GeometricSequence<K> {
    */
   first(n: number) {
     const root = first(n, this.root);
-    return new GeometricSequence<K>(root);
+    return new GeometricSequence<K>(root, this.create);
   }
 
   /**
@@ -103,7 +107,7 @@ export class GeometricSequence<K> {
    */
   last(n: number) {
     const root = last(n, this.root);
-    return new GeometricSequence<K>(root);
+    return new GeometricSequence<K>(root, this.create);
   }
 
   /**
@@ -120,8 +124,8 @@ export class GeometricSequence<K> {
    * @param item New element to add to the array.
    */
   push(item: Item<K>) {
-    const root = push(item, this.root);
-    return new GeometricSequence<K>(root);
+    const root = push(item, this.root, this.create);
+    return new GeometricSequence<K>(root, this.create);
   }
 
   /**
@@ -129,8 +133,8 @@ export class GeometricSequence<K> {
    * @param item Element to insert at the start of the array.
    */
   unshift(item: Item<K>) {
-    const root = unshift(item, this.root);
-    return new GeometricSequence<K>(root);
+    const root = unshift(item, this.root, this.create);
+    return new GeometricSequence<K>(root, this.create);
   }
 
   /**
@@ -156,14 +160,14 @@ export class GeometricSequence<K> {
     const offset = length - start;
     const front = last(offset, this.root);
     const root = first(end - start, front);
-    return new GeometricSequence<K>(root);
+    return new GeometricSequence<K>(root, this.create);
   }
 
   split(i: number) {
     const [left, right] = split(i, this.root);
     return [
-      new GeometricSequence<K>(left),
-      new GeometricSequence<K>(right),
+      new GeometricSequence<K>(left, this.create),
+      new GeometricSequence<K>(right, this.create),
     ];
   }
 
@@ -200,8 +204,7 @@ export function unzip<K>(
     return [undefined, undefined, undefined];
   }
   let remainder = offset;
-  const [lefts, node, rights] = _split(
-    root.items,
+  const [lefts, node, rights] = root.items.split(
     ({ value }) => {
       const size = (value?.size ?? 0) + 1;
       const result = size >= remainder;
@@ -222,7 +225,7 @@ export function unzip<K>(
     const size = node.value?.size ?? 0;
     const [next, n, value] = unzip(size + remainder + 1, node.value);
     const left = norm({ ...root, items: lefts, next });
-    const items = _unshift<Pair<K>>(rights, { key: node.key, value });
+    const items = rights.unshift({ key: node.key, value });
     const right = norm({ ...root, items });
     return [left, n, right];
   }
@@ -253,20 +256,28 @@ export function last<K>(
  */
 export function split<K>(
   i: number,
-  root?: Node<K>,
+  root: Node<K> | undefined,
 ): [Node<K> | undefined, Node<K> | undefined] {
   return [first(i, root), last((root?.size ?? 0) - i, root)];
 }
 
-export function push<K>(x: Item<K>, root?: Node<K>) {
-  return zip(root, singleton(x));
+export function push<K>(
+  x: Item<K>,
+  root: Node<K> | undefined,
+  create: <T>() => List<T>,
+) {
+  return zip(root, singleton(x, create));
 }
 
 /**
  * Prepend a node to the start of the sequence represented by the input tree.
  */
-export function unshift<K>(x: Item<K>, root?: Node<K>) {
-  return zip(singleton(x), root);
+export function unshift<K>(
+  x: Item<K>,
+  root: Node<K> | undefined,
+  create: <T>() => List<T>,
+) {
+  return zip(singleton(x, create), root);
 }
 
 /**
@@ -275,18 +286,19 @@ export function unshift<K>(x: Item<K>, root?: Node<K>) {
 export function insert<K>(
   i: number,
   x: Item<K>,
-  root?: Node<K>,
+  root: Node<K> | undefined,
+  create: <T>() => List<T>,
 ) {
   if (root === undefined || i > root.size || i < 0) {
     if (i == 0) {
-      return singleton(x);
+      return singleton(x, create);
     } else {
       return undefined;
     }
   }
   return zip(
     first(i, root),
-    unshift(x, last((root?.size ?? 0) - i, root)),
+    unshift(x, last((root?.size ?? 0) - i, root), create),
   );
 }
 

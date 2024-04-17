@@ -20,3 +20,5 @@ jspm_packages/
 .vscode
 
 deno.lock
+.Rproj.user
+.DS_Store
