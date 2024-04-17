@@ -1,17 +1,3 @@
-export function splitAt<T>(
-  array: ReadonlyArray<T>,
-  i: number,
-): [ReadonlyArray<T>, ReadonlyArray<T>] {
-  return [array.slice(0, i), array.slice(i)];
-}
-
-// export function findIndex<T>(
-//   array: ReadonlyArray<T>,
-//   predicate: (value: T, index?: number | undefined) => boolean,
-// ): number {
-//   return array.findIndex(predicate);
-// }
-
 export function find<T>(
   array: ReadonlyArray<T>,
   predicate: (value: T, index?: number | undefined) => boolean,
@@ -38,7 +24,7 @@ export function isEmpty<T>(array: ReadonlyArray<T>): boolean {
   return array.length === 0;
 }
 
-export function shift<T>(
+export function unshift<T>(
   array: ReadonlyArray<T>,
   ...values: T[]
 ): Array<T> {
@@ -52,7 +38,7 @@ export function push<T>(
   return [...array, ...values];
 }
 
-export function unshift<T>(array: ReadonlyArray<T>): [Array<T>, T?] {
+export function shift<T>(array: ReadonlyArray<T>): [Array<T>, T?] {
   const rest = [...array].slice(1);
   return [rest, array.at(0)];
 }
