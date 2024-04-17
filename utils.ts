@@ -25,9 +25,18 @@ export function rank(integer: bigint) {
  * @param p The probability of success in a Bernoulli trial.
  * @returns A random value from the geometric distribution with parameter `p`.
  * @see https://math.stackexchange.com/a/3530370
+ * @see https://stackoverflow.com/a/64958223
  */
+// export function geometric(p = 0.5) {
+//   const r = Math.random();
+//   return Math.floor(Math.log1p(-r) / Math.log1p(-p)) + 1;
+// }
 export function geometric(p = 0.5) {
-  return Math.floor(Math.log(Math.random()) / Math.log(p));
+  let rank = 1;
+  while (Math.random() <= p) {
+    rank++;
+  }
+  return rank;
 }
 
 /**
@@ -37,56 +46,9 @@ export function geometric(p = 0.5) {
  * @see https://math.stackexchange.com/a/3530370
  */
 export function truncGeometric(beta: number, p = 0.5) {
+  const r = Math.random();
+  // E[X] = (p^{β−1})/p.
   return Math.floor(
-    Math.log(1 - Math.random() * (1 - Math.pow(p, beta))) / Math.log(p),
-  );
-}
-
-export function pad<T>(
-  array: T[],
-  length: number,
-  front = false,
-): (T | undefined)[] {
-  const padding = Array.from(
-    { length: length - array.length },
-    () => undefined,
-  );
-  return front ? [...padding, ...array] : [...array, ...padding];
-}
-
-/**
- * Find all indices of array where predicate returns `true`.
- * @param array The array to process.
- * @param predicate The function invoked per iteration.
- * @returns Returns an array of all indices for which the predicate function returns `true`.
- */
-export function splits<T>(
-  array: ReadonlyArray<T>,
-  predicate: (element: T, index: number) => boolean,
-): ReadonlyArray<number> {
-  const initial: number[] = [];
-  return array.reduce(
-    (indices, element, index) =>
-      predicate(element, index) ? [...indices, index] : indices,
-    initial,
-  );
-}
-
-/**
- * Split an array into multiple subsets using an array of indices.
- * The elements at the "found" indices are not included in the subsets.
- * @param array The array to process.
- * @param indices The indices at which to split the original array.
- * @returns Returns an array of the resulting subsets.
- */
-export function subsets<T>(
-  array: ReadonlyArray<T>,
-  indices: ReadonlyArray<number>,
-): ReadonlyArray<ReadonlyArray<T>> {
-  const indexes = [-1, ...indices, array.length];
-  return indexes
-    .map((value, index, arr) =>
-      index < arr.length - 1 ? array.slice(value + 1, arr[index + 1]) : null
-    )
-    .filter((x) => x != null) as unknown as T[][];
+    Math.log(1 - r * (1 - Math.pow(1 - p, beta))) / Math.log(1 - p),
+  ) + 1;
 }
