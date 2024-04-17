@@ -1,13 +1,5 @@
 import { Item } from "./api.ts";
-import {
-  from,
-  iter,
-  Node,
-  norm,
-  Pair,
-  singleton,
-  zip,
-} from "./geometric_tree.ts";
+import { from, iter, Node, norm, singleton, zip } from "./geometric_tree.ts";
 import { split as _split, unshift as _unshift } from "./array_ops.ts";
 import { List } from "./list.ts";
 
