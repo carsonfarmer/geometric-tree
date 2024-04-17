@@ -139,10 +139,7 @@ export class GeometricTree<K> implements ZipTree<K> {
    * All of the keys in the right tree must be greater than the keys in the left tree.
    * @returns A new tree with the two trees joined.
    */
-  static zip<K>(
-    left: GeometricTree<K>,
-    right: GeometricTree<K>,
-  ) {
+  static zip<K>(left: GeometricTree<K>, right: GeometricTree<K>) {
     const root = zip(left.root, right.root);
     return new GeometricTree<K>(root);
   }
@@ -410,22 +407,23 @@ export function unzip<K>(
     root.items,
     (item) => item.key >= key,
   );
-  if (node === undefined) {
-    return unzip(key, root.next, (next, n, right) => {
-      const left = norm({ ...root, next });
-      return cont(left, n, right);
+  if (node) {
+    if (node.key === key) {
+      const left = norm({ ...root, items: lefts, next: node.value });
+      const right = norm({ ...root, items: rights });
+      const item = { key: node.key, rank: root.rank };
+      return cont(left, item, right);
+    }
+    return unzip(key, node.value, (next, item, value) => {
+      const left = norm({ ...root, items: lefts, next });
+      const items = unshift<Pair<K>>(rights, { key: node.key, value });
+      const right = norm({ ...root, items });
+      return cont(left, item, right);
     });
-  } else if (node.key === key) {
-    const left = norm({ ...root, items: lefts, next: node.value });
-    const right = norm({ ...root, items: rights });
-    const n = { key: node.key, rank: root.rank };
-    return cont(left, n, right);
   }
-  return unzip(key, node.value, (next, n, value) => {
-    const left = norm({ ...root, items: lefts, next });
-    const items = shift<Pair<K>>(rights, { key: node.key, value });
-    const right = norm({ ...root, items });
-    return cont(left, n, right);
+  return unzip(key, root.next, (next, item, right) => {
+    const left = norm({ ...root, next });
+    return cont(left, item, right);
   });
 }
 
@@ -446,21 +444,22 @@ export function unzipBase<K>(
     root.items,
     (item) => item.key >= key,
   );
-  if (node === undefined) {
-    const [next, n, right] = unzip(key, root.next);
-    const left = norm({ ...root, next });
-    return [left, n, right];
-  } else if (node.key === key) {
-    const left = norm({ ...root, items: lefts, next: node.value });
-    const right = norm({ ...root, items: rights });
-    const n = { key: node.key, rank: root.rank };
-    return [left, n, right];
-  } else {
-    const [next, n, value] = unzip(key, node.value);
+  if (node) {
+    if (node.key === key) {
+      const left = norm({ ...root, items: lefts, next: node.value });
+      const right = norm({ ...root, items: rights });
+      const item = { key: node.key, rank: root.rank };
+      return [left, item, right];
+    }
+    const [next, item, value] = unzipBase(key, node.value);
     const left = norm({ ...root, items: lefts, next });
-    const items = shift<Pair<K>>(rights, { key: node.key, value });
+    const items = unshift<Pair<K>>(rights, { key: node.key, value });
     const right = norm({ ...root, items });
-    return [left, n, right];
+    return [left, item, right];
+  } else {
+    const [next, item, right] = unzipBase(key, root.next);
+    const left = norm({ ...root, next });
+    return [left, item, right];
   }
 }
 
@@ -480,17 +479,18 @@ export function zip<K>(
     return cont(right);
   } else if (right === undefined) {
     return cont(left);
-  } else if (left.rank == right.rank) {
-    const [rights, child] = unshift(right.items);
+  }
+  if (left.rank === right.rank) {
+    const [rights, child] = shift(right.items);
     return zip(left.next, child?.value, (value) => {
       const inner: Pair<K> = { key: child!.key, value };
       const items = join(push(left.items, inner), rights);
       return cont(norm({ ...right, items }));
     });
   } else if (left.rank < right.rank) {
-    const [rights, child] = unshift(right.items);
+    const [rights, child] = shift(right.items);
     return zip(left, child?.value, (value) => {
-      const items = shift<Pair<K>>(rights, { key: child!.key, value });
+      const items = unshift<Pair<K>>(rights, { key: child!.key, value });
       return cont(norm({ ...right, items }));
     });
   }
@@ -511,19 +511,19 @@ export function zipBase<K>(
     return right;
   } else if (right === undefined) {
     return left;
-  } else if (left.rank == right.rank) {
-    const [rights, child] = unshift(right.items);
-    const value = zip(left.next, child?.value);
+  } else if (left.rank === right.rank) {
+    const [rights, child] = shift(right.items);
+    const value = zipBase(left.next, child?.value);
     const inner: Pair<K> = { key: child!.key, value };
     const items = join(push(left.items, inner), rights);
     return norm({ ...right, items });
   } else if (left.rank < right.rank) {
-    const [rights, child] = unshift(right.items);
-    const value = zip(left, child?.value);
-    const items = shift<Pair<K>>(rights, { key: child!.key, value });
+    const [rights, child] = shift(right.items);
+    const value = zipBase(left, child?.value);
+    const items = unshift<Pair<K>>(rights, { key: child!.key, value });
     return norm({ ...right, items });
   } else {
-    const next = zip(left.next, right);
+    const next = zipBase(left.next, right);
     return norm({ ...left, next });
   }
 }

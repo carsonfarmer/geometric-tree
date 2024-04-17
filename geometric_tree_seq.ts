@@ -8,7 +8,7 @@ import {
   singleton,
   zip,
 } from "./geometric_tree.ts";
-import { shift, split as _split } from "./array_ops.ts";
+import { split as _split, unshift as _unshift } from "./array_ops.ts";
 
 export class GeometricSequence<K> {
   constructor(
@@ -222,7 +222,7 @@ export function unzip<K>(
     const size = node.value?.size ?? 0;
     const [next, n, value] = unzip(size + remainder + 1, node.value);
     const left = norm({ ...root, items: lefts, next });
-    const items = shift<Pair<K>>(rights, { key: node.key, value });
+    const items = _unshift<Pair<K>>(rights, { key: node.key, value });
     const right = norm({ ...root, items });
     return [left, n, right];
   }

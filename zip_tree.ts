@@ -201,10 +201,33 @@ export function search<K>(
   }
   if (root.key === key) {
     return root;
-  } else if (root.key > key) {
-    return search(key, root.left);
+  }
+  return search(key, root.key > key ? root.left : root.right);
+}
+
+export function _defaultInsert<K>(
+  item: Item<K>,
+  root?: Node<K>,
+): Node<K> {
+  if (root === undefined) {
+    return singleton(item);
+  }
+  if (item.key < root.key) {
+    const left = _defaultInsert(item, root.left);
+    if (left.rank < root.rank) {
+      return sized({ ...root, left });
+    } else {
+      const right = sized({ ...root, left: left.right });
+      return sized({ ...left, right });
+    }
   } else {
-    return search(key, root.right);
+    const right = _defaultInsert(item, root.right);
+    if (right.rank <= root.rank) {
+      return sized({ ...root, right });
+    } else {
+      const left = sized({ ...root, right: right.left });
+      return sized({ ...right, left });
+    }
   }
 }
 
@@ -225,32 +248,32 @@ export function insert<K>(
  * @param root
  * @returns
  */
-function _defaultRemove<K>(
+export function remove<K>(
   key: K,
   root?: Node<K>,
 ): Node<K> | undefined {
   if (root === undefined) {
     return undefined;
-  } else if (key == root.key) {
+  } else if (key === root.key) {
     return zip(root.left, root.right);
   } else if (key < root.key) {
-    if (key == root.left?.key) {
+    if (key === root.left?.key) {
       const left = zip(root.left.left, root.left.right);
-      return { ...root, left };
+      return sized({ ...root, left });
     }
     const left = remove(key, root.left);
-    return { ...root, left };
+    return sized({ ...root, left });
   } else {
-    if (key == root.right?.key) {
+    if (key === root.right?.key) {
       const right = zip(root.right.left, root.right.right);
-      return { ...root, right };
+      return sized({ ...root, right });
     }
     const right = remove(key, root.right);
-    return { ...root, right };
+    return sized({ ...root, right });
   }
 }
 
-export function remove<K>(
+export function _del<K>(
   key: K,
   root?: Node<K>,
 ): Node<K> | undefined {

@@ -1,3 +1,4 @@
+import { pop } from "./array_ops.ts";
 import {
   assert,
   assertEquals,
@@ -6,9 +7,10 @@ import {
   range,
   shuffle,
   sorted,
+  splitAt,
 } from "./test_utils.ts";
+import { _defaultInsert } from "./zip_tree.ts";
 import { BinaryZipTree as ZipTree, mermaidDiagram } from "./zip_tree.ts";
-import { splitAt } from "./array_ops.ts";
 
 Deno.test({
   name: "from",
@@ -45,6 +47,22 @@ Deno.test({
     assertEquals(root, tree);
     assertEquals(tree.toArray(), frozen);
     assertEquals(root.toArray(), frozen);
+  },
+});
+
+Deno.test({
+  name: "insert in place/replace",
+  only: false,
+  ignore: true, // We ignore this because we know it will fail (by design)
+  fn: () => {
+    // Pop a random item from the array
+    const [rest, item] = pop(shuffle(frozen));
+    assert(item !== undefined);
+    const copy = { ...item }; // Make a copy so that we know it isn't reference equal
+    const tree = ZipTree.from(frozen);
+    const root = _defaultInsert(copy, tree.root);
+    assertEquals(root, tree.root);
+    assertEquals(root, ZipTree.from(sorted([...rest, item])).root);
   },
 });
 
@@ -108,7 +126,7 @@ Deno.test({
     for (const i of shuffle(range(0, frozen.length - 1))) {
       const splitValue = frozen[i].key;
       const [left, target, right] = tree.unzip(splitValue);
-      // TODO: This really highlights the asymmetry of the unzip method.
+      // This really highlights the asymmetry of the unzip method.
       // Is this a bad thing?
       const root = left.zip(ZipTree.singleton(target!)).zip(right);
       assertEquals(tree, root, `mismatch at ${i}`);
@@ -141,8 +159,8 @@ Deno.test({
     assertEquals(newTree?.length(), frozen.length + 1);
 
     // Removing a node should decrease the size at the root.
-    // newTree = newTree.remove(19);
-    newTree = newTree.remove(47);
+    newTree = newTree.remove(19);
+    // newTree = newTree.remove(47);
     assertEquals(newTree?.length(), frozen.length);
   },
 });
@@ -235,7 +253,7 @@ Deno.test({
     const tree = ZipTree.from(frozen);
     console.log(mermaidDiagram(tree));
 
-    const [left, _, right] = tree.unzip(47);
+    const [left, _, right] = tree.unzip(23);
     console.log(mermaidDiagram(left));
     console.log(mermaidDiagram(right));
   },

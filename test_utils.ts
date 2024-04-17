@@ -44,21 +44,24 @@ export function shuffle<T>(array: ReadonlyArray<T>): Array<T> {
   return copy;
 }
 
+export function sample<T>(array: ReadonlyArray<T>, n = 1): Array<T> {
+  return shuffle(array).slice(0, n);
+}
+
 export function random(n = 10, p = 0.5): Array<Item<number>> {
-  const factor = Math.floor(n / 10);
-  const pairs: Item<number>[] = [];
-  const keys = new Set<number>();
-  while (pairs.length < n) {
-    const key = Math.floor(Math.random() * 100 * factor);
-    if (!keys.has(key)) {
-      keys.add(key);
-      const rank = geometric(p);
-      pairs.push({ key, rank });
-    }
-  }
-  return pairs;
+  return Array.from({ length: n }, (_v, key) => {
+    const rank = geometric(p);
+    return { key, rank };
+  });
 }
 
 export function sorted(items: ReadonlyArray<Item<number>>) {
   return items.toSorted(({ key: a }, { key: b }) => a - b);
+}
+
+export function splitAt<T>(
+  array: ReadonlyArray<T>,
+  i: number,
+): [ReadonlyArray<T>, ReadonlyArray<T>] {
+  return [array.slice(0, i), array.slice(i)];
 }
