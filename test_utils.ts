@@ -49,7 +49,7 @@ export function sample<T>(array: ReadonlyArray<T>, n = 1): Array<T> {
 }
 
 export function random(n = 10, p = 0.5): Array<Item<number>> {
-  return Array.from({ length: n }, (v, key) => {
+  return Array.from({ length: n }, (_v, key) => {
     const rank = geometric(p);
     return { key, rank };
   });
