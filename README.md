@@ -1,5 +1,3 @@
-# geometric-tree
-
 > A randomized self-balancing tree data structure.
 
 ## Table of Contents
@@ -87,35 +85,12 @@ graph TD;
 
 ## Install
 
-There are no external dependencies for this project, and it is written in pure Typescript with Deno in mind as the runtime. For now, simply clone the repo and import the code directly into your work. See usage below for an example.
+There are no external dependencies for this project, and it is written in pure Typescript with Deno in mind as the runtime. For now, simply clone the repo and import the code directly into your work.
 
-## Usage
+## Test
 
-```ts
-import { ZipTree } from "./zip_tree.ts";
-import { assert, assertEquals, frozen, shuffle } from "./test_utils.ts";
-
-const tree = ZipTree.from(frozen);
-let root = ZipTree.empty();
-for (const item of shuffle(frozen)) {
-  root = root.insert(item);
-}
-assertEquals(root, tree);
-assertEquals(tree.toArray(), frozen);
-assertEquals(root.toArray(), frozen);
-
-for (const item of shuffle(frozen)) {
-  const node = tree.search(item.key);
-  assertEquals(node, item);
-}
-
-for (const { key } of shuffle(frozen)) {
-  assert(!root.isEmpty());
-  root = root.remove(key);
-}
-assert(root.isEmpty());
-
-console.log("ok");
+```bash
+deno test
 ```
 
 ## API
@@ -126,7 +101,7 @@ The API design is very much a work in progress, and will be updated as the proje
 /**
  * A ZipTree is an immutable, probabilistically balanced tree with a geometric distribution of ranks.
  */
-export interface ZipTree<K, R extends number> {
+export interface ZipTree<K> {
   /**
    * Check if the tree is empty.
    * @returns Whether the tree is empty.
@@ -138,28 +113,28 @@ export interface ZipTree<K, R extends number> {
    * @param key The key to search for.
    * @returns The item with the given key if it exists in the tree, otherwise undefined.
    */
-  search(key: K): Item<K, R> | undefined;
+  search(key: K): Item<K> | undefined;
 
   /**
    * Insert an item into the tree.
    * @param item The item to insert.
    * @returns A new tree with the item inserted.
    */
-  insert(item: Item<K, R>): ZipTree<K, R>;
+  insert(item: Item<K>): ZipTree<K>;
 
   /**
    * Remove an item from the tree.
    * @param key The key of the item to remove.
    * @returns A new tree with the item removed.
    */
-  remove(key: K): ZipTree<K, R>;
+  remove(key: K): ZipTree<K>;
 
   /**
    * Split the input tree into two balanced sub-trees.
    * @param key The key to split the tree on.
    * @returns A tuple of the left and right trees.
    */
-  unzip(key: K): [ZipTree<K, R>, ZipTree<K, R>];
+  unzip(key: K): [ZipTree<K>, Item<K> | undefined, ZipTree<K>];
 
   /**
    * Join another tree into this one.
@@ -167,7 +142,7 @@ export interface ZipTree<K, R extends number> {
    * All of the keys in the other tree must be greater than the keys in this tree.
    * @returns A new tree with the two trees joined.
    */
-  zip(other: ZipTree<K, R>): ZipTree<K, R>;
+  zip(other: ZipTree<K>): ZipTree<K>;
 
   /**
    * Return a string representation of the tree.
@@ -179,13 +154,13 @@ export interface ZipTree<K, R extends number> {
    * Return an Iterator over the items in the tree.
    * @returns An Iterator over the items in the tree.
    */
-  [Symbol.iterator](): IterableIterator<Item<K, R>>;
+  [Symbol.iterator](): IterableIterator<Item<K>>;
 
   /**
    * Return an array of the in-order items in the tree.
    * @returns An array of the in-order items in the tree.
    */
-  toArray(): Array<Item<K, R>>;
+  toArray(): Array<Item<K>>;
 }
 ```
 
@@ -207,6 +182,3 @@ Small note: If editing the README, please conform to the [standard-readme specif
 ## License
 
 MIT © Carson Farmer
-
-```
-```
