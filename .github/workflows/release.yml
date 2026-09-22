@@ -1,6 +1,7 @@
 # Publishes to npm when a tag like v1.2.3 is pushed and matches package.json.
-# Uses npm trusted publishing (OIDC) if configured on npmjs.com for this
-# repository and workflow; otherwise set an NPM_TOKEN repository secret.
+# Authenticates with npm trusted publishing (OIDC): no token or secret is
+# involved. The package's settings on npmjs.com must list this repository and
+# this workflow file as a trusted publisher.
 name: release
 on:
   push:
@@ -26,5 +27,3 @@ jobs:
       - name: Check that the tag matches package.json
         run: test "v$(node -p 'require("./package.json").version')" = "${GITHUB_REF_NAME}"
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
