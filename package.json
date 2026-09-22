@@ -4,7 +4,10 @@
   "description": "Immutable, history-independent maps, sets and lists built on geometric search trees (G-trees). No dependencies, any runtime.",
   "license": "MIT",
   "author": "Carson Farmer",
-  "repository": "github:carsonfarmer/geometric-tree",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carsonfarmer/geometric-tree.git"
+  },
   "keywords": [
     "g-tree",
     "zip-tree",
@@ -40,7 +43,6 @@
   },
   "main": "dist/index.js",
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   }
 }
