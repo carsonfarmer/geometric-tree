@@ -17,5 +17,5 @@ const hashString = (s) => {
   return h >>> 0;
 };
 const fixed = GSet.from(Array.from({ length: 1000 }, (_, i) => i * 7919), { k: 4 });
-assert.equal(hashString(fingerprint(fixed.root)), 1620864361);
+assert.equal(hashString(fingerprint(fixed.root)), 1801069496);
 console.log("ok");

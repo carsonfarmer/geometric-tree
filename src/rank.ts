@@ -23,9 +23,11 @@ const M = 2 ** 32;
  * someone who can choose keys can also choose their ranks.
  */
 export const hash: Hash<unknown> = (key, seed) => {
+  // The seed is mixed in as a leading input unit, so different seeds give
+  // unrelated hashes rather than a permutation of the same values.
+  let h1 = Math.imul(0xdeadbeef ^ seed, 2654435761);
+  let h2 = Math.imul(0x41c6ce57 ^ seed, 1597334677);
   const s = String(key);
-  let h1 = 0xdeadbeef ^ seed;
-  let h2 = 0x41c6ce57 ^ seed;
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
     h1 = Math.imul(h1 ^ c, 2654435761);

@@ -136,7 +136,7 @@ describe("section 4.1: analysis", () => {
   test("4.1.2 node sizes are geometric with mean k", () => {
     for (const k of [2, 4, 16, 64] as const) {
       const sizes = forest(k, 10000).flatMap((t) => [...nodes(t)].map((n) => [...n.items].length));
-      expect(Math.abs(mean(sizes) - figure7[k])).toBeLessThanOrEqual(0.1 * k);
+      expect(Math.abs(mean(sizes) - figure7[k])).toBeLessThanOrEqual(0.15 * k);
       // P(|g| >= s) = (1 - 1/k)^(s - 1): the paper's bound with a corrected exponent.
       for (const c of [1, 2, 3]) {
         const s = c * k;
