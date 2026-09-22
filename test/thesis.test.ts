@@ -35,7 +35,8 @@ describe("Gk-trees", () => {
       for (let i = 0; i < 200; i++) map.get(Math.floor((i * n) / 200));
       const get = compares / 200;
       compares = 0;
-      for (let i = 0; i < 100; i++) map.set(n + i, i);
+      // Spread positions: the cost of one spine node would dominate at the end.
+      for (let i = 0; i < 100; i++) map.set(Math.floor((i * n) / 100) + 0.5, i);
       const set = compares / 100;
       let dims = 0;
       for (const [node, dim] of everywhere(map.root)) {
