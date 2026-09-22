@@ -182,6 +182,11 @@ bun run build      # dist/ with ESM and type declarations
 bun run smoke      # build, then import dist/ from Node
 ```
 
+Installing straight from GitHub also works (`npm install github:carsonfarmer/geometric-tree`):
+the `prepare` script builds `dist/` on install. To release, bump `version` in `package.json`,
+then push a matching tag (`git tag v0.2.0 && git push --tags`); the release workflow tests,
+builds and publishes to npm with provenance.
+
 ## References
 
 - Carson Farmer and Aljoscha Meyer. *Geometric Search Trees.* https://g-trees.github.io/g_trees/

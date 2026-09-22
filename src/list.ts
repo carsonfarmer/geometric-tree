@@ -1,4 +1,4 @@
-import { random, type Rank } from "./rank";
+import { random, type Rank } from "./rank.js";
 import {
   ArrayItems,
   entries,
@@ -8,7 +8,7 @@ import {
   zip,
   type Entry,
   type Tree,
-} from "./tree";
+} from "./tree.js";
 
 /**
  * A G-tree used as a sequence: positions replace keys, and node sizes guide

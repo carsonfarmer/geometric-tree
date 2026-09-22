@@ -14,8 +14,8 @@
  * conversion happens in both directions at the same threshold, so the
  * representation remains a function of the stored set alone.
  */
-import { hashed, type Rank } from "./rank";
-import type { ItemsFactory, Options } from "./options";
+import { hashed, type Rank } from "./rank.js";
+import type { ItemsFactory, Options } from "./options.js";
 import {
   ArrayItems,
   entries,
@@ -29,7 +29,7 @@ import {
   type Entry,
   type Items,
   type Tree,
-} from "./tree";
+} from "./tree.js";
 
 /** One dimension of a Gk-tree: how its inner trees rank, weigh and nest. */
 export type Dimension<K> = {

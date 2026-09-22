@@ -1,8 +1,8 @@
-export * from "./tree";
-export * as binary from "./binary";
-export * from "./rank";
-export { type ItemsFactory, type Options } from "./options";
-export { gk, GkItems, TreeItems } from "./gk";
-export { GMap } from "./map";
-export { GSet } from "./set";
-export { GList, at, splitAt, type Seq } from "./list";
+export * from "./tree.js";
+export * as binary from "./binary.js";
+export * from "./rank.js";
+export { type ItemsFactory, type Options } from "./options.js";
+export { gk, GkItems, TreeItems } from "./gk.js";
+export { GMap } from "./map.js";
+export { GSet } from "./set.js";
+export { GList, at, splitAt, type Seq } from "./list.js";
