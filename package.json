@@ -1,0 +1,41 @@
+{
+  "name": "geometric-tree",
+  "version": "0.1.0",
+  "description": "Immutable, history-independent maps, sets and lists built on geometric search trees (G-trees). No dependencies, any runtime.",
+  "license": "MIT",
+  "author": "Carson Farmer",
+  "repository": "github:carsonfarmer/geometric-tree",
+  "keywords": [
+    "g-tree",
+    "zip-tree",
+    "persistent",
+    "immutable",
+    "history-independent",
+    "map",
+    "set"
+  ],
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "build": "bun build src/index.ts --outdir dist --target node && tsc -p tsconfig.build.json",
+    "smoke": "bun run build && node test/node.mjs",
+    "bench": "bun run bench/bench.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^5"
+  },
+  "main": "dist/index.js"
+}

@@ -1,183 +1,193 @@
-> A randomized self-balancing tree data structure.
+# geometric-tree
 
-## Table of Contents
+> Immutable, history-independent maps, sets and lists built on geometric search trees.
 
-- [Background](#background)
-- [Install](#install)
-- [Usage](#usage)
-- [API](#api)
-- [Contributing](#contributing)
-- [License](#license)
+A [G-tree](https://g-trees.github.io/g_trees/) is a randomised search tree in which every key
+gets a geometrically distributed *rank*, and a node holds the whole run of keys that share the
+highest rank in its subtree. Ranks derived from a hash of the key make the tree a pure function
+of its contents: the same set of keys always yields the same tree, whatever the order of
+insertions and deletions. With about `k` keys per node the family spans zip trees (`k = 2`),
+cache-friendly wide trees, and, with a G-tree as the inner set of each node, zip-zip trees.
 
-## Background
-
-This project includes an implementation of the zip-tree data structure, as well as an unbounded b-tree variant based on translating the zip-tree operations to trees of higher order.
-
-A zip-tree is a randomized version of a balanced binary search tree, which relies on randomization (similar to "skip-lists") to maintain balance rather than strict structural properties. The zip-tree is a simple data structure, and is easy to implement and understand.
-
-```mermaid
-graph TD;
-7--3-2-->3
-3--2-1-->2
-3--2-1-->5
-7--3-3-->31
-31--3-3-->13
-13--2-1-->11
-13--2-2-->23
-23--2-1-->17
-17-.->17null{ }
-17--1-1-->19
-23--2-2-->29
-31--3-3-->53
-53--3-2-->41
-41--2-1-->37
-41--2-2-->43
-43-.->43null{ }
-43--2-1-->47
-53--3-3-->67
-67--3-2-->61
-61--2-1-->59
-61-.->61null{ }
-67--3-2-->71
-```
-
-The equivalent unbounded b-tree implemented here is a self-balancing tree data structure that maintains sorted data and allows searches, insertions, and deletions in logarithmic time. The "unbounded" nature means that this b-tree variant doesn't have a fixed order (i.e., a maximum number of child nodes). This b-tree variant takes the concepts and methods used in zip-trees and applies them to trees of higher order.
-
-```mermaid
-graph TD;
-7-67--3-2-->3
-3--2-1-->2
-3--2-1-->5
-7-67--3-2-->13-29
-13-29--2-1-->11
-13-29--2-1-->17-19
-7-67--3-2-->41-43
-41-43--2-1-->37
-41-43--2-1-->47
-7-67--3-2-->61
-61--2-1-->59
-7-67--3-2-->71-[71]
-```
-
-A generalized variant of the higher-order tree, which we call a geometric-tree, is also implemented here. The geometric-tree enables creating trees with a maximum number of children. This bounded variant can be used to create a spectrum of probabilistic tree types, from binary, to a more traditional b-tree, to the unbounded b-tree variant shown above (and anything in between). The following figure shows a geometric-tree with a maximum of 2 + 1 children per node.
-
-```mermaid
-graph TD;
-7-67--3-3-->7-31
-7-31--3-2-->3
-3--2-1-->2
-3--2-1-->5
-7-31--3-2-->13-29
-13-29--2-2-->13-23
-13-23--2-1-->11
-13-23--2-1-->17-19
-13-29--2-2-->29
-7-67--3-3-->53-67
-53-67--3-2-->41-43
-41-43--2-1-->37
-41-43--2-1-->47
-53-67--3-2-->61
-61--2-1-->59
-7-67--3-2-->71-[71]
-```
-
-## Geometric Trees
+The point of this library is how little code it takes. The whole tree is two operations,
+`unzip` and `zip`, and everything else is a composition of them.
 
 ## Install
 
-There are no external dependencies for this project, and it is written in pure Typescript with Deno in mind as the runtime. For now, simply clone the repo and import the code directly into your work.
-
-## Test
-
-```bash
-deno test
+```sh
+npm install geometric-tree   # or bun add, pnpm add, deno add npm:geometric-tree
 ```
 
-## API
+Plain ESM with no dependencies and no runtime-specific APIs; it runs on Node, Bun, Deno and
+browsers. [Bun](https://bun.sh) is used for development only.
 
-The API design is very much a work in progress, and will be updated as the project progresses. It is minimal at the moment, and for ease of translation, the APIs for the two implementations have been kept almost identical. The trees are immutable, and all "mutating" operations return a new tree. The trees are also persistent, and share structure where possible.
+## Usage
 
 ```ts
-/**
- * A ZipTree is an immutable, probabilistically balanced tree with a geometric distribution of ranks.
- */
-export interface ZipTree<K> {
-  /**
-   * Check if the tree is empty.
-   * @returns Whether the tree is empty.
-   */
-  isEmpty(): boolean;
+import { GMap, GSet, GList } from "geometric-tree";
 
-  /**
-   * Search for a key in the tree.
-   * @param key The key to search for.
-   * @returns The item with the given key if it exists in the tree, otherwise undefined.
-   */
-  search(key: K): Item<K> | undefined;
+// Map: ordered by key, every update returns a new map.
+let m = GMap.from([["b", 2], ["a", 1]]);
+m = m.set("c", 3).delete("a");
+m.get("b");      // 2
+m.has("a");      // false
+[...m];          // [["b", 2], ["c", 3]]
 
-  /**
-   * Insert an item into the tree.
-   * @param item The item to insert.
-   * @returns A new tree with the item inserted.
-   */
-  insert(item: Item<K>): ZipTree<K>;
+// Set.
+let s = GSet.from([3, 1, 2]);
+s = s.add(4).delete(1);
+[...s];          // [2, 3, 4]
 
-  /**
-   * Remove an item from the tree.
-   * @param key The key of the item to remove.
-   * @returns A new tree with the item removed.
-   */
-  remove(key: K): ZipTree<K>;
+// List: logarithmic insert, remove, slice and concat at any position.
+let l = GList.from(["a", "b", "d"]);
+l = l.insert(2, "c").remove(0);
+l.at(0);         // "b"
+[...l.slice(1)]; // ["c", "d"]
+[...l.concat(l)] // ["b", "c", "d", "b", "c", "d"]
+```
 
-  /**
-   * Split the input tree into two balanced sub-trees.
-   * @param key The key to split the tree on.
-   * @returns A tuple of the left and right trees.
-   */
-  unzip(key: K): [ZipTree<K>, Item<K> | undefined, ZipTree<K>];
+All structures are persistent: old versions stay valid and share structure with new ones.
 
-  /**
-   * Join another tree into this one.
-   * @param other The other tree to join.
-   * All of the keys in the other tree must be greater than the keys in this tree.
-   * @returns A new tree with the two trees joined.
-   */
-  zip(other: ZipTree<K>): ZipTree<K>;
+## How it works
 
-  /**
-   * Return a string representation of the tree.
-   * @returns A string representation of the tree.
-   */
-  toString(): string;
+A tree is a `Node` or `undefined`. A node has a `rank`, an ordered collection of `items`, each an
+`Entry` holding a key, a value and the subtree of the keys before it, and one `right` subtree of
+the keys after the last item.
 
-  /**
-   * Return an Iterator over the items in the tree.
-   * @returns An Iterator over the items in the tree.
-   */
-  [Symbol.iterator](): IterableIterator<Item<K>>;
+```ts
+type Entry<K, V> = { key: K; value: V; left: Tree<K, V> };
+type Node<K, V> = { rank: number; items: Items<K, V>; right: Tree<K, V>; size: number };
+type Tree<K, V> = Node<K, V> | undefined;
+```
 
-  /**
-   * Return an array of the in-order items in the tree.
-   * @returns An array of the in-order items in the tree.
-   */
-  toArray(): Array<Item<K>>;
+`unzip` splits a tree around a position into everything before it, the entry at it, and
+everything after; `zip` joins two ordered trees. Both walk one path of the tree and rebuild the
+nodes on it, so they take logarithmic time.
+
+```ts
+function unzip(t, at) {
+  if (t === undefined) return [undefined, undefined, undefined];
+  const [lo, e, hi] = t.items.split(at);
+  if (e !== undefined) return [node(t.rank, lo, e.left), e, node(t.rank, hi, t.right)];
+  if (hi.weight === 0) {
+    const [l, hit, r] = unzip(t.right, at);
+    return [node(t.rank, lo, l), hit, r];
+  }
+  const [first, rest] = hi.shift();
+  const [l, hit, r] = unzip(first.left, at);
+  return [node(t.rank, lo, l), hit, node(t.rank, rest.unshift({ ...first, left: r }), t.right)];
+}
+
+function zip(l, r) {
+  if (l === undefined) return r;
+  if (r === undefined) return l;
+  if (l.rank > r.rank) return node(l.rank, l.items, zip(l.right, r));
+  const [first, rest] = r.items.shift();
+  if (l.rank < r.rank) return node(r.rank, rest.unshift({ ...first, left: zip(l, first.left) }), r.right);
+  return node(r.rank, l.items.join(rest.unshift({ ...first, left: zip(l.right, first.left) })), r.right);
 }
 ```
 
-## Contributing
+Insertion is `zip(zip(before, single), after)` and deletion is `zip(before, after)`, both
+starting from `unzip`. Because insertion drops any existing entry at the position, a map's `set`
+is an upsert for free. The list variant splits by position instead of by key, using the node
+sizes, and shares `zip`.
 
-To get started, please fork this repository, and then clone it to your local machine. Once you have a local copy, you can run the tests, build the project, and run the example code:
+The inner collection of a node, `Items`, is an interface with six members (`weight`, `split`,
+`find`, `join`, `shift`, `unshift`). The default is a sorted array. Nodes have constant expected
+size, so linear-time array operations cost nothing asymptotically.
 
-```bash
-git clone git@github.com:carsonfarmer/max-k-tree.git
-cd max-k-tree
-deno test
-deno run example.ts
+For contrast, `src/binary.ts` is the classic binary zip tree, with the same function names. A
+G-tree with `k = 2` is that tree with every run of equal-rank right children folded into one
+node, and the tests unfold one into the other to check it.
+
+## Options
+
+`GMap` and `GSet` take:
+
+| option    | default          | meaning                                                         |
+| --------- | ---------------- | --------------------------------------------------------------- |
+| `k`       | `8`              | expected keys per node; `2` gives a zip tree                    |
+| `compare` | `<` / `>`        | three-way key comparison                                        |
+| `rank`    | `hashed(k)`      | rank function; `random(k)` needs no hash but is history dependent |
+| `items`   | sorted arrays    | inner-set implementation, see [Gk-trees](#gk-trees)             |
+
+`hashed(k)` is the construction from section 3.2 of the paper: hash the key, then count the
+leading zero digits of the hash in base `k`. It is computed by inverse transform, one logarithm
+followed by an exact integer check, so it costs the same for any `k` and gives identical ranks
+on every runtime. Hash functions return a 32-bit integer, the convention of xxHash32,
+MurmurHash3 and friends, so any of them drops in; the default is a small, fast,
+non-cryptographic string hash over `String(key)`. Keys of object type need a comparator and
+a hash:
+
+```ts
+import { GMap, hash, hashed } from "geometric-tree";
+
+type P = { x: number; y: number };
+const m = GMap.empty<P, string>({
+  compare: (a, b) => a.x - b.x || a.y - b.y,
+  rank: hashed(8, (p, seed) => hash(`${p.x},${p.y}`, seed)),
+});
 ```
 
-PRs accepted.
+`GList` takes only `k`; its ranks are random, since positions carry no key to hash.
 
-Small note: If editing the README, please conform to the [standard-readme specification](https://github.com/RichardLitt/standard-readme).
+## Gk-trees
+
+A G-tree is only as balanced as its ranks. Someone who can craft keys can give them all the
+same rank, and a plain G-tree then degenerates into one node holding every key. Jannik
+Hehemann's master's thesis (Mittweida, 2025, section 4.1) proposes a fix: once a node holds
+more than a threshold of entries, store them as a G-tree of their own, ranked by a fresh hash,
+and so on recursively. Forcing a collision now costs the attacker one preimage-like search per
+dimension, and operations stay in O(log² n) even against an adaptive adversary.
+
+The `Items` interface makes this a drop-in: `TreeItems` is an inner set backed by a G-tree, and
+`GkItems` is a sorted array that becomes a `TreeItems` past the threshold and back below it.
+Converting in both directions at the same size keeps the representation a function of the
+stored set, so history independence survives.
+
+```ts
+import { GSet, gk } from "geometric-tree";
+
+const s = GSet.empty<string>(gk({ k: 8 }));               // threshold defaults to 12k
+const zz = GSet.empty<string>(gk({ k: 2, threshold: 1 })); // zip-zip trees
+```
+
+With the default threshold an honest node overflows with probability around e⁻¹², so the
+Gk variant costs nothing measurable on ordinary data.
+
+## Performance
+
+Simplicity comes first, but the structures are usable. Rough figures for 100 000 integer keys
+on one core (`bun run bench`), per operation:
+
+| structure    | insert | get    | iterate | delete |
+| ------------ | ------ | ------ | ------- | ------ |
+| `GMap`, k=8  | ~10 µs | ~1 µs   | ~0.3 µs | ~8 µs  |
+| `GMap`, k=2  | ~12 µs | ~2 µs   | ~0.6 µs | ~11 µs |
+
+Updates allocate a new node for every node on the path, plus array copies of the node
+contents; that is the price of persistence. Building insertion from `unzip` and `zip` costs
+roughly two extra path walks compared to a hand-written insert, which is the trade the paper
+makes as well.
+
+## Development
+
+```sh
+bun install
+bun test
+bun run typecheck
+bun run bench
+bun run build      # dist/ with ESM and type declarations
+bun run smoke      # build, then import dist/ from Node
+```
+
+## References
+
+- Carson Farmer and Aljoscha Meyer. *Geometric Search Trees.* https://g-trees.github.io/g_trees/
+- Jannik Hehemann. *History-independent data structures and their synchronisation.* Master's
+  thesis, Hochschule Mittweida, 2025. Section 4.1, Gk-trees.
+- Tarjan, Levy and Timmel. *Zip Trees.* ACM Transactions on Algorithms, 2021.
 
 ## License
 
