@@ -163,8 +163,10 @@ on one core (`bun run bench`), per operation:
 
 | structure    | insert | get    | iterate | delete |
 | ------------ | ------ | ------ | ------- | ------ |
-| `GMap`, k=8  | ~10 µs | ~1 µs   | ~0.3 µs | ~8 µs  |
-| `GMap`, k=2  | ~12 µs | ~2 µs   | ~0.6 µs | ~11 µs |
+| `GMap`, k=8  | ~11 µs | ~1.4 µs | ~0.3 µs | ~10 µs |
+| `GMap`, k=2  | ~13 µs | ~2.5 µs | ~0.8 µs | ~13 µs |
+
+Taken on a shared machine that varies by about 20% between runs; treat them as orders of magnitude.
 
 Updates allocate a new node for every node on the path, plus array copies of the node
 contents; that is the price of persistence. Building insertion from `unzip` and `zip` costs
