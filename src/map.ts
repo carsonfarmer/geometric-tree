@@ -1,4 +1,4 @@
-import { config, type Config, type Options } from "./options";
+import { config, type Config, type Options } from "./options.js";
 import {
   entries,
   find,
@@ -8,7 +8,7 @@ import {
   size,
   type Entry,
   type Tree,
-} from "./tree";
+} from "./tree.js";
 
 /** An immutable, ordered map. Every update returns a new map. */
 export class GMap<K, V> implements Iterable<[K, V]> {

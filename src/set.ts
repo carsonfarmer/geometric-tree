@@ -1,4 +1,4 @@
-import { config, type Config, type Options } from "./options";
+import { config, type Config, type Options } from "./options.js";
 import {
   entries,
   find,
@@ -8,7 +8,7 @@ import {
   size,
   type Entry,
   type Tree,
-} from "./tree";
+} from "./tree.js";
 
 /** An immutable, ordered set. Every update returns a new set. */
 export class GSet<K> implements Iterable<K> {

@@ -1,5 +1,5 @@
-import { hashed, type Rank } from "./rank";
-import { ArrayItems, type Compare, type Items } from "./tree";
+import { hashed, type Rank } from "./rank.js";
+import { ArrayItems, type Compare, type Items } from "./tree.js";
 
 /** Creates the empty inner set for a node of a tree keyed by `K`. */
 export type ItemsFactory<K> = <V>() => Items<K, V>;
