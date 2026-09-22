@@ -1,5 +1,6 @@
 import { expect } from "bun:test";
-import type { Compare, Tree } from "../src/tree";
+import { hash, hashed } from "../src/rank";
+import type { Compare, Node, Tree } from "../src/tree";
 
 /** A small seeded PRNG (mulberry32) so failures reproduce. */
 export function prng(seed: number) {
@@ -56,3 +57,30 @@ export const ranks = new Map<number, number>([
 ]);
 export const primes = [...ranks.keys()];
 export const fixed = (key: number) => ranks.get(key)!;
+
+/** Every node of a tree, in preorder. */
+export function* nodes<K, V>(t: Tree<K, V>): Generator<Node<K, V>> {
+  if (t === undefined) return;
+  yield t;
+  for (const e of t.items) yield* nodes(e.left);
+  yield* nodes(t.right);
+}
+
+/** Height in nodes. */
+export function height<K, V>(t: Tree<K, V>): number {
+  if (t === undefined) return 0;
+  let h = height(t.right);
+  for (const e of t.items) h = Math.max(h, height(e.left));
+  return h + 1;
+}
+
+/** A string that determines the tree's shape, keys and ranks. */
+export function fingerprint<K, V>(t: Tree<K, V>): string {
+  if (t === undefined) return ".";
+  const items = [...t.items].map((e) => `${fingerprint(e.left)}${e.key}`).join(",");
+  return `${t.rank}(${items})${fingerprint(t.right)}`;
+}
+
+/** A rank function independent of `hashed(k)` for repeated experiments. */
+export const trial = (k: number, i: number) =>
+  hashed<number>(k, (key, seed) => hash(`${i}/${key}`, seed));
