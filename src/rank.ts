@@ -7,15 +7,18 @@
 /** Assigns a rank to a key. `seed` selects an independent rank function. */
 export type Rank<K> = (key: K, seed?: number) => number;
 
-/** Hashes a key to a uniform integer in [0, 2^53); seeds give independent hashes. */
+/**
+ * Hashes a key to a 32-bit integer, the convention of xxHash32, MurmurHash3
+ * and friends, so any of them drops in. Seeds give independent hashes.
+ */
 export type Hash<K> = (key: K, seed: number) => number;
 
 /** The number of hash values. */
-const M = 2 ** 53;
+const M = 2 ** 32;
 
 /**
- * Hash a key by its string form with cyrb53, a small, fast, well-mixed 53-bit
- * string hash that runs on any runtime. Keys of object type need their own
+ * Hash a key by its string form: cyrb53's mixing, folded to 32 bits. Small,
+ * fast, and the same on every runtime. Keys of object type need their own
  * hash. It is not cryptographic: it makes trees history independent, but
  * someone who can choose keys can also choose their ranks.
  */
@@ -30,7 +33,7 @@ export const hash: Hash<unknown> = (key, seed) => {
   }
   h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
   h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+  return (h1 ^ h2) >>> 0;
 };
 
 /**
@@ -43,10 +46,10 @@ export const hash: Hash<unknown> = (key, seed) => {
  */
 export function hashed<K>(k = 2, hashKey: Hash<K> = hash): Rank<K> {
   // bound[r] is the largest hash value (plus one) still of rank r + 1.
-  const bound = Array.from({ length: 56 }, (_, r) => M / k ** r);
+  const bound = Array.from({ length: 35 }, (_, r) => M / k ** r);
   const lnk = Math.log(k);
   return (key, seed = 0) => {
-    const h = hashKey(key, seed) + 1;
+    const h = (hashKey(key, seed) >>> 0) + 1;
     let r = Math.floor(Math.log(M / h) / lnk);
     if (h > bound[r]!) r--;
     else if (h <= bound[r + 1]!) r++;

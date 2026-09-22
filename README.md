@@ -115,9 +115,10 @@ node, and the tests unfold one into the other to check it.
 `hashed(k)` is the construction from section 3.2 of the paper: hash the key, then count the
 leading zero digits of the hash in base `k`. It is computed by inverse transform, one logarithm
 followed by an exact integer check, so it costs the same for any `k` and gives identical ranks
-on every runtime. The default hash is cyrb53 over
-`String(key)`, a small, fast, non-cryptographic string hash that runs everywhere. Keys of
-object type need a comparator and a hash:
+on every runtime. Hash functions return a 32-bit integer, the convention of xxHash32,
+MurmurHash3 and friends, so any of them drops in; the default is a small, fast,
+non-cryptographic string hash over `String(key)`. Keys of object type need a comparator and
+a hash:
 
 ```ts
 import { GMap, hash, hashed } from "geometric-tree";
