@@ -15,11 +15,11 @@ The point of this library is how little code it takes. The whole tree is two ope
 ## Install
 
 ```sh
-bun add geometric-tree
+npm install geometric-tree   # or bun add, pnpm add, deno add npm:geometric-tree
 ```
 
-The library targets [Bun](https://bun.sh). The default rank function hashes keys with `Bun.hash`;
-on other runtimes pass your own `rank` (see [Options](#options)).
+Plain ESM with no dependencies and no runtime-specific APIs; it runs on Node, Bun, Deno and
+browsers. [Bun](https://bun.sh) is used for development only.
 
 ## Usage
 
@@ -97,6 +97,10 @@ The inner collection of a node, `Items`, is an interface with six members (`weig
 `find`, `join`, `shift`, `unshift`). The default is a sorted array. Nodes have constant expected
 size, so linear-time array operations cost nothing asymptotically.
 
+For contrast, `src/binary.ts` is the classic binary zip tree, with the same function names. A
+G-tree with `k = 2` is that tree with every run of equal-rank right children folded into one
+node, and the tests unfold one into the other to check it.
+
 ## Options
 
 `GMap` and `GSet` take:
@@ -108,15 +112,19 @@ size, so linear-time array operations cost nothing asymptotically.
 | `rank`    | `hashed(k)`      | rank function; `random(k)` needs no hash but is history dependent |
 | `items`   | sorted arrays    | inner-set implementation, see [Gk-trees](#gk-trees)             |
 
-`hashed` hashes `String(key)` by default. Keys of object type need a comparator and a hash:
+`hashed(k)` is the construction from section 3.2 of the paper: hash the key, then count the
+trailing zero digits of the hash in base `k`. For `k = 2` that is the largest power of two
+dividing the hash, as in Pugh and Teitelbaum's skip lists. The default hash is cyrb53 over
+`String(key)`, a small, fast, non-cryptographic string hash that runs everywhere. Keys of
+object type need a comparator and a hash:
 
 ```ts
-import { GMap, hashed } from "geometric-tree";
+import { GMap, hash, hashed } from "geometric-tree";
 
 type P = { x: number; y: number };
 const m = GMap.empty<P, string>({
   compare: (a, b) => a.x - b.x || a.y - b.y,
-  rank: hashed(8, (p, seed) => Bun.hash.xxHash32(`${p.x},${p.y}`, seed)),
+  rank: hashed(8, (p, seed) => hash(`${p.x},${p.y}`, seed)),
 });
 ```
 
@@ -153,8 +161,8 @@ on one core (`bun run bench`), per operation:
 
 | structure    | insert | get    | iterate | delete |
 | ------------ | ------ | ------ | ------- | ------ |
-| `GMap`, k=8  | ~14 µs | ~1.7 µs | ~0.5 µs | ~15 µs |
-| `GMap`, k=2  | ~20 µs | ~2.6 µs | ~1 µs   | ~18 µs |
+| `GMap`, k=8  | ~10 µs | ~1 µs   | ~0.3 µs | ~8 µs  |
+| `GMap`, k=2  | ~12 µs | ~2 µs   | ~0.6 µs | ~11 µs |
 
 Updates allocate a new node for every node on the path, plus array copies of the node
 contents; that is the price of persistence. Building insertion from `unzip` and `zip` costs
@@ -169,6 +177,7 @@ bun test
 bun run typecheck
 bun run bench
 bun run build      # dist/ with ESM and type declarations
+bun run smoke      # build, then import dist/ from Node
 ```
 
 ## References

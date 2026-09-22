@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { GMap } from "../src/map";
-import { hashed, random } from "../src/rank";
+import { hash, hashed, random } from "../src/rank";
 import { check, prng, shuffle } from "./util";
 
 const compare = (a: number, b: number) => a - b;
@@ -66,7 +66,7 @@ describe("GMap", () => {
     type P = { x: number; y: number };
     const map = GMap.from<P, string>([[{ x: 1, y: 2 }, "a"], [{ x: 0, y: 9 }, "b"]], {
       compare: (a, b) => a.x - b.x || a.y - b.y,
-      rank: hashed(2, (p, seed) => Bun.hash.xxHash32(`${p.x},${p.y}`, seed)),
+      rank: hashed(2, (p, seed) => hash(`${p.x},${p.y}`, seed)),
     });
     expect(map.get({ x: 1, y: 2 })).toBe("a");
     expect([...map.values()]).toEqual(["b", "a"]);
