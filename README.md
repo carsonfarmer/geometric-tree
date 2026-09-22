@@ -113,8 +113,9 @@ node, and the tests unfold one into the other to check it.
 | `items`   | sorted arrays    | inner-set implementation, see [Gk-trees](#gk-trees)             |
 
 `hashed(k)` is the construction from section 3.2 of the paper: hash the key, then count the
-trailing zero digits of the hash in base `k`. For `k = 2` that is the largest power of two
-dividing the hash, as in Pugh and Teitelbaum's skip lists. The default hash is cyrb53 over
+leading zero digits of the hash in base `k`. It is computed by inverse transform, one logarithm
+followed by an exact integer check, so it costs the same for any `k` and gives identical ranks
+on every runtime. The default hash is cyrb53 over
 `String(key)`, a small, fast, non-cryptographic string hash that runs everywhere. Keys of
 object type need a comparator and a hash:
 
