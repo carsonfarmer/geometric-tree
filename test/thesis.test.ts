@@ -84,4 +84,4 @@ function hashString(s: string) {
   for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
   return h >>> 0;
 }
-const GOLDEN = 1620864361;
+const GOLDEN = 1801069496;
